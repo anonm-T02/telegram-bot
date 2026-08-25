@@ -1,0 +1,46 @@
+{
+  "name": "nova-org",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NOVA ORG — Telegram Mini App + Internal Coin + Hybrid Compute Platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "workers/*"
+  ],
+  "scripts": {
+    "build:packages": "npm run build -w @nova-org/config -w @nova-org/shared -w @nova-org/validation -w @nova-org/ui -w @nova-org/db",
+    "build:apps": "npm run build -w @nova-org/api -w @nova-org/bot -w @nova-org/mini-app -w @nova-org/admin -w @nova-org/validator -w @nova-org/server-worker",
+    "build": "npm run build:packages && npm run build:apps",
+    "typecheck:packages": "npm run typecheck -w @nova-org/config -w @nova-org/shared -w @nova-org/validation -w @nova-org/ui -w @nova-org/db",
+    "typecheck:apps": "npm run typecheck -w @nova-org/api -w @nova-org/bot -w @nova-org/mini-app -w @nova-org/admin -w @nova-org/validator -w @nova-org/server-worker",
+    "typecheck": "npm run typecheck:packages && npm run typecheck:apps",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev:api": "npm run dev -w @nova-org/api",
+    "dev:bot": "npm run dev -w @nova-org/bot",
+    "dev:mini-app": "npm run dev -w @nova-org/mini-app",
+    "dev:admin": "npm run dev -w @nova-org/admin",
+    "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker/docker-compose.yml down"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "allowScripts": {
+    "@prisma/client@5.22.0": true,
+    "@prisma/engines@5.22.0": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true,
+    "prisma@5.22.0": true
+  }
+}

@@ -1,0 +1,7 @@
+dist
+build
+node_modules
+.vite
+coverage
+*.log
+NOVA_ORG_AGENT_PLAN.md
