@@ -20,6 +20,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run prisma:generate -w @nova-org/db
+      - name: Build workspace packages required by applications
+        run: npm run build:packages
       - run: npm run typecheck
       - run: npm run build
       - run: npm test -w @nova-org/api
