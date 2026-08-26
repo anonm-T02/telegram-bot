@@ -1,0 +1,32 @@
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/bot/package.json apps/bot/package.json
+COPY apps/admin/package.json apps/admin/package.json
+COPY apps/mini-app/package.json apps/mini-app/package.json
+COPY packages/config/package.json packages/config/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/validation/package.json packages/validation/package.json
+COPY workers/server-worker/package.json workers/server-worker/package.json
+COPY workers/validator/package.json workers/validator/package.json
+RUN npm ci
+COPY . .
+RUN npm run prisma:generate -w @nova-org/db && npm run build:packages && npm run build -w @nova-org/bot
+RUN npm prune --omit=dev
+
+FROM node:20-bookworm-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/apps/bot/dist ./apps/bot/dist
+COPY --from=build /app/packages/config/dist ./packages/config/dist
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/apps/bot/package.json ./apps/bot/package.json
+COPY --from=build /app/packages/config/package.json ./packages/config/package.json
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+USER node
+CMD ["node", "apps/bot/dist/index.js"]

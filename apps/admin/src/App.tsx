@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { APP_NAME } from "@nova-org/shared";
 
+if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+  throw new Error("VITE_API_URL is required for the production Admin build");
+}
 const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
 type View = "overview" | "users" | "rewards" | "fraud" | "audit" | "settings";
 type Dashboard = {

@@ -14,11 +14,11 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
-    "@prisma/client": "^5.19.1"
+    "@prisma/client": "^5.19.1",
+    "prisma": "^5.19.1"
   },
   "devDependencies": {
     "@types/node": "^26.3.0",
-    "prisma": "^5.19.1",
     "typescript": "^5.5.4"
   }
 }

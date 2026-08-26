@@ -1,0 +1,62 @@
+name: Deploy Cloudflare frontends
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-production-frontends
+  cancel-in-progress: false
+
+jobs:
+  deploy-mini-app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Require an HTTPS API URL
+        shell: bash
+        env:
+          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: '[[ "$VITE_API_URL" == https://* ]]'
+      - run: npm run build -w @nova-org/mini-app
+        env:
+          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/mini-app/dist --project-name=${{ vars.CLOUDFLARE_MINI_APP_PROJECT }} --branch=main
+
+  deploy-admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Require an HTTPS API URL
+        shell: bash
+        env:
+          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: '[[ "$VITE_API_URL" == https://* ]]'
+      - run: npm run build -w @nova-org/admin
+        env:
+          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy apps/admin/dist --project-name=${{ vars.CLOUDFLARE_ADMIN_PROJECT }} --branch=main

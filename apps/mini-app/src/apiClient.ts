@@ -158,6 +158,9 @@ export class SessionRequestError extends Error {
   }
 }
 
+if (import.meta.env.PROD && !import.meta.env.VITE_API_URL) {
+  throw new Error("VITE_API_URL is required for the production Mini App build");
+}
 const API_URL = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/$/, "");
 
 async function readJson<T>(response: Response): Promise<T> {

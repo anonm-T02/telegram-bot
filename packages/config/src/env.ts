@@ -6,6 +6,11 @@ const envSchema = z
 
     TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN is required"),
     TELEGRAM_BOT_USERNAME: z.string().min(1, "TELEGRAM_BOT_USERNAME is required"),
+    TELEGRAM_WEBHOOK_URL: z.string().url().optional(),
+    TELEGRAM_WEBHOOK_SECRET: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{32,256}$/)
+      .optional(),
 
     APP_URL: z.string().url(),
     API_URL: z.string().url(),
@@ -39,6 +44,7 @@ const envSchema = z
 
     API_PORT: z.coerce.number().int().positive().default(4000),
     ADMIN_API_PORT: z.coerce.number().int().positive().default(4001),
+    PORT: z.coerce.number().int().positive().optional(),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(2).default(0),
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])

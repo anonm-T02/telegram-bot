@@ -24,7 +24,7 @@ process.once("SIGTERM", () => void shutdown("SIGTERM"));
 process.once("SIGINT", () => void shutdown("SIGINT"));
 
 app
-  .listen({ port: env.API_PORT, host: "0.0.0.0" })
+  .listen({ port: env.PORT ?? env.API_PORT, host: "0.0.0.0" })
   .then((address) => {
     app.log.info(`NOVA ORG API listening at ${address}`);
   })

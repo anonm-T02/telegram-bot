@@ -18,6 +18,10 @@ const ACTIVITY_SWEEP_INTERVAL_MS = 20_000;
 
 export function buildApp(): FastifyInstance {
   const app = Fastify({
+    bodyLimit: 256 * 1024,
+    requestTimeout: 30_000,
+    connectionTimeout: 10_000,
+    keepAliveTimeout: 72_000,
     trustProxy: env.TRUST_PROXY_HOPS > 0 ? env.TRUST_PROXY_HOPS : false,
     logger: {
       level: env.LOG_LEVEL,
@@ -30,6 +34,16 @@ export function buildApp(): FastifyInstance {
         censor: "[REDACTED]",
       },
     },
+  });
+
+  app.addHook("onSend", async (_request, reply, payload) => {
+    void reply
+      .header("x-content-type-options", "nosniff")
+      .header("x-frame-options", "DENY")
+      .header("referrer-policy", "no-referrer")
+      .header("permissions-policy", "camera=(), microphone=(), geolocation=()")
+      .header("cache-control", "no-store");
+    return payload;
   });
 
   void app.register(cors, {

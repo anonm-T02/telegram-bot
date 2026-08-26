@@ -1,0 +1,38 @@
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/bot/package.json apps/bot/package.json
+COPY apps/admin/package.json apps/admin/package.json
+COPY apps/mini-app/package.json apps/mini-app/package.json
+COPY packages/config/package.json packages/config/package.json
+COPY packages/db/package.json packages/db/package.json
+COPY packages/shared/package.json packages/shared/package.json
+COPY packages/ui/package.json packages/ui/package.json
+COPY packages/validation/package.json packages/validation/package.json
+COPY workers/server-worker/package.json workers/server-worker/package.json
+COPY workers/validator/package.json workers/validator/package.json
+RUN npm ci
+COPY . .
+RUN npm run prisma:generate -w @nova-org/db && npm run build:packages && npm run build -w @nova-org/api
+RUN npm prune --omit=dev
+
+FROM node:20-bookworm-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/apps/api/dist ./apps/api/dist
+COPY --chown=node:node --from=build /app/packages/config/dist ./packages/config/dist
+COPY --chown=node:node --from=build /app/packages/db/dist ./packages/db/dist
+COPY --chown=node:node --from=build /app/packages/db/prisma ./packages/db/prisma
+COPY --chown=node:node --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --chown=node:node --from=build /app/packages/validation/dist ./packages/validation/dist
+COPY --chown=node:node --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --chown=node:node --from=build /app/packages/config/package.json ./packages/config/package.json
+COPY --chown=node:node --from=build /app/packages/db/package.json ./packages/db/package.json
+COPY --chown=node:node --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --chown=node:node --from=build /app/packages/validation/package.json ./packages/validation/package.json
+USER node
+CMD ["node", "apps/api/dist/index.js"]
