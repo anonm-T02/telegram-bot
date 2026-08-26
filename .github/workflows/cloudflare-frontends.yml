@@ -27,6 +27,8 @@ jobs:
           CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
+          CF_ACCOUNT_ID="${CF_ACCOUNT_ID%%[[:space:]]*}"
+          CF_API_TOKEN="${CF_API_TOKEN%%[[:space:]]*}"
           for project in nova-mini-app nova-admin; do
             status="$(curl --silent --output response.json --write-out '%{http_code}' \
               --request GET \
@@ -67,11 +69,16 @@ jobs:
       - run: npm run build -w @nova-org/mini-app
         env:
           VITE_API_URL: https://api.ilmora.space
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/mini-app/dist --project-name=nova-mini-app --branch=main
+      - name: Deploy Mini App
+        shell: bash
+        env:
+          CF_ACCOUNT_ID_RAW: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN_RAW: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          export CLOUDFLARE_ACCOUNT_ID="${CF_ACCOUNT_ID_RAW%%[[:space:]]*}"
+          export CLOUDFLARE_API_TOKEN="${CF_API_TOKEN_RAW%%[[:space:]]*}"
+          npx --yes wrangler@latest pages deploy apps/mini-app/dist --project-name=nova-mini-app --branch=main
 
   deploy-admin:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
@@ -94,8 +101,13 @@ jobs:
       - run: npm run build -w @nova-org/admin
         env:
           VITE_API_URL: https://api.ilmora.space
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/admin/dist --project-name=nova-admin --branch=main
+      - name: Deploy Admin
+        shell: bash
+        env:
+          CF_ACCOUNT_ID_RAW: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN_RAW: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          export CLOUDFLARE_ACCOUNT_ID="${CF_ACCOUNT_ID_RAW%%[[:space:]]*}"
+          export CLOUDFLARE_API_TOKEN="${CF_API_TOKEN_RAW%%[[:space:]]*}"
+          npx --yes wrangler@latest pages deploy apps/admin/dist --project-name=nova-admin --branch=main
