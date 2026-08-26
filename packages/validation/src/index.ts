@@ -6,3 +6,5 @@ export * from "./account.js";
 export * from "./click.js";
 export * from "./referrals.js";
 export * from "./rewards.js";
+export * from "./admin.js";
+export * from "./support.js";

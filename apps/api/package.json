@@ -11,6 +11,7 @@
     "start": "node --env-file=../../.env dist/index.js"
   },
   "dependencies": {
+    "@fastify/cors": "^8.5.0",
     "@nova-org/config": "0.1.0",
     "@nova-org/db": "0.1.0",
     "@nova-org/shared": "0.1.0",

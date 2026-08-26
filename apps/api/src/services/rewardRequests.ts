@@ -46,6 +46,10 @@ export function rewardBudgetDecision(
   return { reserve, queued: !reserve };
 }
 
+export function canBeginRewardDelivery(status: RewardState, payoutPaused: boolean): boolean {
+  return status === "APPROVED" && !payoutPaused;
+}
+
 export class RewardRequestError extends Error {
   constructor(readonly code: "INSUFFICIENT_BALANCE" | "IDEMPOTENCY_CONFLICT" | "NOT_FOUND") {
     super(code);
@@ -87,6 +91,13 @@ async function paused(tx: Prisma.TransactionClient): Promise<boolean> {
   return setting?.value === true;
 }
 
+async function configuredDailyLimit(tx: Prisma.TransactionClient): Promise<number> {
+  const setting = await tx.systemSetting.findUnique({ where: { key: "reward.dailyLimitUnits" } });
+  return typeof setting?.value === "number" && Number.isInteger(setting.value)
+    ? setting.value
+    : DAILY_REWARD_LIMIT;
+}
+
 export async function createRewardRequest(
   userId: string,
   idempotencyKey: string,
@@ -118,10 +129,11 @@ export async function createRewardRequest(
         throw new RewardRequestError("INSUFFICIENT_BALANCE");
       const risk = await tx.riskScore.findUnique({ where: { userId }, select: { level: true } });
       const unsafe = risk?.level === "REVIEW_REQUIRED" || risk?.level === "TEMPORARY_REWARD_HOLD";
+      const dailyLimit = await configuredDailyLimit(tx);
 
       const budget = await tx.rewardBudget.upsert({
         where: { budgetDate: requestDate },
-        create: { budgetDate: requestDate, dailyLimit: DAILY_REWARD_LIMIT },
+        create: { budgetDate: requestDate, dailyLimit },
         update: {},
       });
       await tx.$executeRaw`SELECT id FROM "RewardBudget" WHERE id = ${budget.id} FOR UPDATE`;
@@ -234,12 +246,18 @@ export async function getRewardRequest(userId: string, id: string) {
 export async function deliverReward(requestId: string, provider: RewardProvider, now = new Date()) {
   const sending = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`reward-send:${requestId}`}, 0))`;
+    // Serializes the final pause check with the admin emergency-pause mutation.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('reward-payout-control', 0))`;
     const request = await tx.rewardRequest.findUniqueOrThrow({
       where: { id: requestId },
       include: { user: { select: { telegramId: true } }, transactions: true },
     });
     if (request.status === "PAID" || request.status === "REFUNDED") return null;
-    if (request.status !== "APPROVED") throw new Error("INVALID_REWARD_TRANSITION");
+    const isPaused = await paused(tx);
+    if (!canBeginRewardDelivery(request.status, isPaused)) {
+      if (request.status === "APPROVED" && isPaused) return null;
+      throw new Error("INVALID_REWARD_TRANSITION");
+    }
     const transaction = await tx.rewardTransaction.upsert({
       where: { rewardRequestId: requestId },
       create: {

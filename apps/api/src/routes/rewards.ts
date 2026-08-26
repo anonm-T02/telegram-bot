@@ -71,7 +71,15 @@ export async function rewardRoutes(app: FastifyInstance): Promise<void> {
     if (!query.success) return reply.code(400).send({ error: "Invalid query" });
     try {
       const userId = await authenticate(request);
+      const wallet = await prisma.wallet.findUniqueOrThrow({
+        where: { userId },
+        select: { balance: true, lockedBalance: true },
+      });
       return reply.send({
+        wallet: {
+          availableMicrocoins: wallet.balance.toString(),
+          lockedMicrocoins: wallet.lockedBalance.toString(),
+        },
         rewards: await listRewardRequests(userId, query.data.limit, query.data.cursor),
       });
     } catch (error) {

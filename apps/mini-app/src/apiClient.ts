@@ -83,6 +83,60 @@ export interface ReferralsResponse {
   referrals: ReferralItem[];
 }
 
+export type RewardStatus =
+  | "REQUESTED"
+  | "RISK_CHECK"
+  | "APPROVED"
+  | "QUEUED"
+  | "SENDING"
+  | "PAID"
+  | "REVIEW_REQUIRED"
+  | "FAILED"
+  | "REJECTED"
+  | "REFUNDED";
+
+export interface RewardItem {
+  id: string;
+  status: RewardStatus;
+  coinAmount: string;
+  rewardUnits: number;
+  providerType: string;
+  requestedAt: string;
+  updatedAt: string;
+  failureCode: string | null;
+}
+
+export interface RewardsResponse {
+  wallet: { availableMicrocoins: string; lockedMicrocoins: string };
+  rewards: RewardItem[];
+}
+
+export interface RewardRequestResponse {
+  request: RewardItem;
+  duplicate: boolean;
+}
+
+export interface FaqArticle {
+  slug: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+}
+export interface SupportChatResponse {
+  conversationId: string;
+  response: string;
+  source: string;
+  duplicate: boolean;
+}
+export interface SupportTicket {
+  id: string;
+  subject: string;
+  category: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApiErrorBody {
   error?: string;
   nextAllowedAt?: string;
@@ -134,6 +188,10 @@ export async function refreshTelegramSession(refreshToken: string): Promise<Tele
   );
 }
 
+export async function getPublicFaq(): Promise<{ articles: FaqArticle[] }> {
+  return readJson(await fetch(`${API_URL}/support/faq?locale=uz`));
+}
+
 export class SessionApiClient {
   private refreshInFlight: Promise<void> | undefined;
 
@@ -163,6 +221,43 @@ export class SessionApiClient {
 
   async getReferrals(): Promise<ReferralsResponse> {
     return this.request<ReferralsResponse>("/referrals", { method: "GET" });
+  }
+
+  async getRewards(): Promise<RewardsResponse> {
+    return this.request<RewardsResponse>("/rewards", { method: "GET" });
+  }
+
+  async requestReward(idempotencyKey: string): Promise<RewardRequestResponse> {
+    return this.request<RewardRequestResponse>("/rewards/request", {
+      method: "POST",
+      payload: { idempotencyKey },
+    });
+  }
+
+  async getFaq(): Promise<{ articles: FaqArticle[] }> {
+    return this.request("/support/faq?locale=uz", { method: "GET" });
+  }
+
+  async supportChat(
+    message: string,
+    requestId: string,
+    conversationId?: string,
+  ): Promise<SupportChatResponse> {
+    return this.request("/support/chat", {
+      method: "POST",
+      payload: { message, requestId, ...(conversationId ? { conversationId } : {}) },
+    });
+  }
+
+  async getSupportTickets(): Promise<{ tickets: SupportTicket[] }> {
+    return this.request("/support/tickets", { method: "GET" });
+  }
+
+  async createSupportTicket(subject: string, message: string, idempotencyKey: string) {
+    return this.request<{ ticket: SupportTicket; duplicate: boolean }>("/support/tickets", {
+      method: "POST",
+      payload: { subject, message, category: "OTHER", idempotencyKey },
+    });
   }
 
   private async request<T = void>(

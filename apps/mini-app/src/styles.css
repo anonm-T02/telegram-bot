@@ -209,7 +209,7 @@ h1 {
   margin: auto;
   padding: 9px 16px max(9px, env(safe-area-inset-bottom));
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   border-top: 1px solid rgba(68, 220, 235, 0.18);
   background: rgba(5, 9, 13, 0.96);
@@ -411,6 +411,135 @@ h1 {
 }
 .state-panel--error {
   color: #d95c5c;
+}
+.reward-view {
+  display: grid;
+  gap: 14px;
+}
+.reward-balances {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+.reward-balances small {
+  color: #7f9198;
+  font-size: 10px;
+}
+.reward-request:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.reward-history {
+  padding: 17px;
+}
+.reward-history p {
+  color: #9eb0b6;
+  font-size: 13px;
+}
+.reward-history ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.reward-history li {
+  padding: 12px 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 12px;
+  border-top: 1px solid rgba(68, 220, 235, 0.12);
+}
+.reward-history li div {
+  display: grid;
+  gap: 4px;
+}
+.reward-history li > span {
+  color: #40c78b;
+  font-size: 11px;
+}
+.reward-history small {
+  color: #7f9198;
+  font-size: 10px;
+}
+.support-view {
+  display: grid;
+  gap: 14px;
+}
+.support-chat,
+.faq-list,
+.ticket-list {
+  padding: 17px;
+}
+.support-chat {
+  display: grid;
+  gap: 10px;
+}
+.support-chat label {
+  color: #9eb0b6;
+  font-size: 12px;
+}
+.support-chat textarea {
+  min-height: 92px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid rgba(54, 221, 232, 0.24);
+  border-radius: 9px;
+  color: #eaf4f5;
+  background: #061016;
+  font: inherit;
+}
+.support-chat button:disabled {
+  opacity: 0.55;
+}
+.support-answer {
+  padding: 12px;
+  border-radius: 9px;
+  background: #0d1d24;
+}
+.support-answer p {
+  margin: 0 0 10px;
+  color: #bdd0d5;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.support-answer button {
+  border: 0;
+  color: #36dde8;
+  background: transparent;
+  cursor: pointer;
+}
+.faq-list details {
+  padding: 12px 0;
+  border-top: 1px solid rgba(68, 220, 235, 0.12);
+}
+.faq-list details:first-of-type {
+  margin-top: 12px;
+}
+.faq-list summary {
+  color: #d9e8ea;
+  cursor: pointer;
+  font-size: 13px;
+}
+.faq-list p,
+.ticket-list p {
+  color: #9eb0b6;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ticket-list ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ticket-list li {
+  padding: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid rgba(68, 220, 235, 0.12);
+  font-size: 12px;
+}
+.ticket-list li span {
+  color: #40c78b;
 }
 @media (max-height: 650px) {
   .coin-button {

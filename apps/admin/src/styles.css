@@ -1,17 +1,240 @@
 :root {
   color-scheme: dark;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
+  font-family: Inter, "Segoe UI", sans-serif;
   background: #05090d;
   color: #eaf4f5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-
-#root {
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
   min-height: 100vh;
+  background: radial-gradient(circle at 70% 0, #102731 0, #05090d 42%);
+}
+button,
+input {
+  font: inherit;
+}
+.eyebrow {
+  color: #77919a;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.login-card {
+  width: min(420px, 100%);
+  padding: 30px;
+  border: 1px solid #173b45;
+  border-radius: 16px;
+  background: #091218;
+  box-shadow: 0 30px 80px #0008;
+}
+h1 {
+  margin: 6px 0 0;
+  font-size: 30px;
+}
+h2 {
+  margin: 0 0 18px;
+  font-size: 17px;
+}
+.login-card p,
+.login-card small {
+  color: #91a8af;
+  line-height: 1.5;
+}
+.login-card label {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0 12px;
+  color: #9eb0b6;
+  font-size: 12px;
+}
+input {
+  min-height: 46px;
+  padding: 0 12px;
+  color: #eaf4f5;
+  border: 1px solid #24505b;
+  border-radius: 8px;
+  background: #050b10;
+}
+.login-card button {
+  width: 100%;
+  margin: 18px 0 10px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 8px;
+  color: #031015;
+  background: #36dde8;
+  font-weight: 800;
+}
+.admin-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+}
+nav {
+  padding: 24px 14px;
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  border-right: 1px solid #15313a;
+  background: #071016;
+}
+nav > div {
+  display: grid;
+  gap: 4px;
+  padding: 0 10px 20px;
+}
+nav button {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #82979e;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+nav button.active {
+  color: #36dde8;
+  border-color: #194752;
+  background: #0c2028;
+}
+nav .logout {
+  margin-top: auto;
+  color: #d77a7a;
+}
+.admin-shell main {
+  min-width: 0;
+  padding: 28px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 22px;
+}
+.secure {
+  color: #40c78b;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.metric,
+.panel,
+.table-wrap,
+.notice {
+  padding: 18px;
+  border: 1px solid #173b45;
+  border-radius: 12px;
+  background: #091218ee;
+}
+.metric {
+  display: grid;
+  gap: 7px;
+}
+.metric span {
+  color: #7f9198;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.metric strong {
+  color: #36dde8;
+  font-size: 23px;
+  overflow-wrap: anywhere;
+}
+.panel {
+  margin-top: 14px;
+}
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.two-col .metric {
+  background: #061016;
+}
+.status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.status-grid div {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #0d1d24;
+}
+.status-grid span {
+  margin-right: 14px;
+  color: #899da4;
+  font-size: 10px;
+}
+.status-grid strong {
+  color: #d5a84b;
+}
+.table-wrap {
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+th,
+td {
+  padding: 12px;
+  border-bottom: 1px solid #15313a;
+  text-align: left;
+  white-space: nowrap;
+}
+th {
+  color: #789098;
+  text-transform: uppercase;
+}
+td {
+  color: #bdd0d5;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notice {
+  color: #d5a84b;
+}
+.empty {
+  color: #82979e;
+}
+@media (max-width: 760px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+  nav {
+    flex-direction: row;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid #15313a;
+  }
+  nav > div,
+  nav .logout {
+    display: none;
+  }
+  nav button {
+    white-space: nowrap;
+  }
+  .admin-shell main {
+    padding: 18px;
+  }
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

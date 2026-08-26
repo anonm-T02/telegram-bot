@@ -64,3 +64,13 @@ export function claimDailyReward(telegramId: number): Promise<DailyRewardRespons
 export function getReferralStats(telegramId: number): Promise<ReferralStatsResponse> {
   return callInternalApi<ReferralStatsResponse>(`/internal/referral/${telegramId}`);
 }
+
+export function approveAdminLogin(challengeId: string, telegramId: number) {
+  return callInternalApi<{ approved: boolean; duplicate: boolean }>(
+    "/internal/admin-login/approve",
+    {
+      method: "POST",
+      body: JSON.stringify({ challengeId, telegramId: String(telegramId) }),
+    },
+  );
+}

@@ -12,8 +12,14 @@ import {
   refreshSession,
   TelegramAuthError,
 } from "../services/telegramAuth.js";
+import { consumeAuthRateLimit } from "../services/appSecurity.js";
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
+  app.addHook("onRequest", async (request, reply) => {
+    if (!consumeAuthRateLimit(request.ip)) {
+      await reply.code(429).send({ error: "RATE_LIMITED" });
+    }
+  });
   app.post("/auth/telegram", async (request, reply) => {
     const body = telegramAuthBodySchema.safeParse(request.body);
     if (!body.success) {

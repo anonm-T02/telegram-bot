@@ -10,6 +10,13 @@ export const telegramIdParamSchema = z.object({
   telegramId: z.string().regex(/^\d+$/, "telegramId must be a numeric string"),
 });
 
+export const adminLoginApprovalBodySchema = z
+  .object({
+    challengeId: z.string().uuid(),
+    telegramId: z.string().regex(/^\d+$/, "telegramId must be a numeric string"),
+  })
+  .strict();
+
 export const ensureUserBodySchema = z.object({
   telegramId: z.string().regex(/^\d+$/, "telegramId must be a numeric string"),
   username: z.string().trim().min(1).max(64).optional(),

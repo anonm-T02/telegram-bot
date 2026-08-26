@@ -1,4 +1,13 @@
-# Deployment scripts
+# Production operations scripts
 
-Placeholder for Phase 5 (Production). Will contain deploy, backup, and
-health-check scripts. See `NOVA_ORG_AGENT_PLAN.md` section 21 (AGENT 10).
+These scripts target an Ubuntu host running Docker Compose. They do not contain
+credentials. Configure them with environment variables or a root-readable
+systemd/cron environment file; do not commit that file.
+
+- `backup-postgres.sh` creates and verifies a compressed PostgreSQL archive,
+  writes a SHA-256 checksum, and removes expired backups.
+- `restore-postgres.sh` verifies and restores one archive only after explicit
+  confirmation.
+- `health-check.sh` checks Compose datastores and optional HTTPS endpoints.
+
+See `docs/deployment.md` for required inputs and examples.

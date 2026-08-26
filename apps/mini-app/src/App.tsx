@@ -5,8 +5,10 @@ import { useClickEngine } from "./hooks/useClickEngine.js";
 import { useTelegramSession } from "./hooks/useTelegramSession.js";
 import { initTelegram } from "./telegram.js";
 import { ReferralScreen } from "./ReferralScreen.js";
+import { RewardScreen } from "./RewardScreen.js";
+import { SupportScreen } from "./SupportScreen.js";
 
-type View = "home" | "referrals";
+type View = "home" | "referrals" | "rewards" | "support";
 
 export function App(): JSX.Element {
   useEffect(() => initTelegram(), []);
@@ -124,8 +126,12 @@ export function App(): JSX.Element {
             {data ? `${data.dailyRemaining} confirmed taps remaining today` : "Syncing limits…"}
           </p>
         </section>
-      ) : (
+      ) : view === "referrals" ? (
         <ReferralScreen client={session.status === "ready" ? session.client : undefined} />
+      ) : view === "rewards" ? (
+        <RewardScreen client={session.status === "ready" ? session.client : undefined} />
+      ) : (
+        <SupportScreen client={session.status === "ready" ? session.client : undefined} />
       )}
 
       {health.status === "error" && (
@@ -149,6 +155,21 @@ export function App(): JSX.Element {
         >
           <span aria-hidden="true">◇</span>
           Referrals
+        </button>
+        <button
+          type="button"
+          aria-current={view === "rewards" ? "page" : undefined}
+          onClick={() => setView("rewards")}
+        >
+          <span aria-hidden="true">☆</span>
+          Rewards
+        </button>
+        <button
+          type="button"
+          aria-current={view === "support" ? "page" : undefined}
+          onClick={() => setView("support")}
+        >
+          <span aria-hidden="true">?</span>Support
         </button>
       </nav>
     </main>

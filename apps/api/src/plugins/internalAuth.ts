@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "../env.js";
+import { internalSecretMatches } from "../services/appSecurity.js";
 
 const INTERNAL_SECRET_HEADER = "x-internal-secret";
 
@@ -15,7 +16,7 @@ export async function requireInternalSecret(
 ): Promise<void> {
   const provided = request.headers[INTERNAL_SECRET_HEADER];
 
-  if (provided !== env.INTERNAL_API_SECRET) {
+  if (!internalSecretMatches(provided, env.INTERNAL_API_SECRET)) {
     await reply.code(401).send({ error: "Unauthorized" });
   }
 }

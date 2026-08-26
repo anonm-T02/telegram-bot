@@ -1,10 +1,15 @@
 import type { FastifyInstance } from "fastify";
-import { ensureUserBodySchema, telegramIdParamSchema } from "@nova-org/validation";
+import {
+  adminLoginApprovalBodySchema,
+  ensureUserBodySchema,
+  telegramIdParamSchema,
+} from "@nova-org/validation";
 import { requireInternalSecret } from "../plugins/internalAuth.js";
 import { ensureUser } from "../services/users.js";
 import { getWalletByTelegramId, UserNotFoundError } from "../services/wallet.js";
 import { claimDailyReward } from "../services/rewards.js";
 import { getReferralStats } from "../services/referral.js";
+import { AdminLoginError, approveAdminLoginChallenge } from "../services/adminLogin.js";
 
 export async function internalRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", requireInternalSecret);
@@ -30,6 +35,28 @@ export async function internalRoutes(app: FastifyInstance): Promise<void> {
     );
 
     return result;
+  });
+
+  app.post("/internal/admin-login/approve", async (request, reply) => {
+    const parsed = adminLoginApprovalBodySchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: "Invalid request" });
+    try {
+      return await approveAdminLoginChallenge(
+        parsed.data.challengeId,
+        BigInt(parsed.data.telegramId),
+      );
+    } catch (error) {
+      if (!(error instanceof AdminLoginError)) throw error;
+      const status =
+        error.code === "FORBIDDEN"
+          ? 403
+          : error.code === "NOT_FOUND"
+            ? 404
+            : error.code === "EXPIRED" || error.code === "CONSUMED"
+              ? 410
+              : 409;
+      return reply.code(status).send({ error: error.code });
+    }
   });
 
   app.get("/internal/wallet/:telegramId", async (request, reply) => {

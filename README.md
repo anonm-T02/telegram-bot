@@ -160,8 +160,28 @@ docs/         Architecture, API, database, security docs
 - Referral daily quality-bonus queue.
 - Fraud signals and risk scoring.
 
-## What's next (Integrated Phase 5)
+## What's complete (Integrated Phase 5)
 
 - Reward request state machine and locked balances.
 - Test/Manual reward providers.
 - Global daily Stars-equivalent budget and emergency payout pause.
+- Mini App Rewards screen with server-provided available/locked balances and request history.
+
+## What's complete (Integrated Phase 6)
+
+- User and admin dashboards.
+- Admin authorization and append-only audit log.
+- Reward, risk, and operational overview controls.
+
+## What's complete (Integrated Phase 7)
+
+- FAQ-first support flow.
+- AI provider abstraction with safe fallbacks.
+- Read-only support tools with strict authorization.
+- Mini App FAQ, support chat, and user ticket interface.
+
+## What's next (Integrated Phase 8)
+
+- Explicit CPU contribution consent and revocation.
+- Signed, allowlisted benchmark tasks.
+- Resource limits, thermal safety, and worker observability.

@@ -46,6 +46,15 @@ model User {
   riskScore               RiskScore?
   referralReleaseCounters ReferralReleaseCounter[]
   rewardRequests          RewardRequest[]
+  adminUser               AdminUser?
+  supportTickets          SupportTicket[]
+  supportMessages         SupportMessage[]
+  aiConversations         AiConversation[]
+  adminLoginChallenges    AdminLoginChallenge[]
+  cpuConsents             CpuConsent[]
+  cpuSessions             CpuSession[]
+  computeTasks            ComputeTask[]
+  computeResults          ComputeResult[]
 
   referralsMade    Referral[] @relation("ReferrerRelation")
   referralReceived Referral?  @relation("ReferredRelation")
@@ -327,6 +336,156 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 }
 
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATOR
+  REVIEWER
+}
+
+enum AdminStatus {
+  ACTIVE
+  DISABLED
+}
+
+model AdminUser {
+  id        String          @id @default(cuid())
+  userId    String          @unique
+  user      User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role      AdminRole       @default(REVIEWER)
+  status    AdminStatus     @default(ACTIVE)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  auditLogs AdminAuditLog[]
+}
+
+enum AdminLoginChallengeStatus {
+  PENDING
+  APPROVED
+  CONSUMED
+  EXPIRED
+}
+
+model AdminLoginChallenge {
+  id               String                    @id
+  codeChallenge    String
+  status           AdminLoginChallengeStatus @default(PENDING)
+  approvedByUserId String?
+  approvedByUser   User?                     @relation(fields: [approvedByUserId], references: [id], onDelete: Restrict)
+  expiresAt        DateTime
+  approvedAt       DateTime?
+  consumedAt       DateTime?
+  createdAt        DateTime                  @default(now())
+
+  @@index([status, expiresAt])
+  @@index([approvedByUserId, createdAt])
+}
+
+// Append-only record of every privileged mutation. Database triggers reject
+// UPDATE and DELETE so application bugs cannot rewrite administrative history.
+model AdminAuditLog {
+  id             String    @id @default(cuid())
+  adminId        String
+  admin          AdminUser @relation(fields: [adminId], references: [id], onDelete: Restrict)
+  action         String
+  entityType     String
+  entityId       String
+  idempotencyKey String    @unique
+  before         Json?
+  after          Json?
+  metadata       Json?
+  ipHash         String?
+  createdAt      DateTime  @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([action, createdAt])
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum SupportActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+model FaqArticle {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  locale      String   @default("uz")
+  question    String
+  answer      String
+  keywords    String[]
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, locale, sortOrder])
+}
+
+model SupportTicket {
+  id             String              @id @default(cuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  subject        String
+  category       String
+  status         SupportTicketStatus @default(OPEN)
+  idempotencyKey String              @unique
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  resolvedAt     DateTime?
+  messages       SupportMessage[]
+
+  @@index([userId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model SupportMessage {
+  id        String           @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+  userId    String?
+  user      User?            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  actorType SupportActorType
+  content   String
+  createdAt DateTime         @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model AiConversation {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  messages  AiMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model AiMessage {
+  id               String         @id @default(cuid())
+  conversationId   String
+  conversation     AiConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  requestId        String?        @unique
+  replyToRequestId String?        @unique
+  role             String
+  content          String
+  provider         String?
+  toolName         String?
+  metadata         Json?
+  createdAt        DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
 enum ClickEventStatus {
   ACCEPTED
   REJECTED
@@ -590,4 +749,197 @@ model RiskScore {
   updatedAt    DateTime  @updatedAt
 
   @@index([level, score, calculatedAt])
+}
+
+enum CpuConsentStatus {
+  GRANTED
+  REVOKED
+  EXPIRED
+}
+
+enum CpuConsentAction {
+  GRANT
+  REVOKE
+}
+
+// Explicit, scoped permission for safe in-repository benchmarks. A consent is
+// never inferred from login, clicks, heartbeat, or an earlier session.
+model CpuConsent {
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  clientInstanceHash String
+  policyVersion      String
+  status             CpuConsentStatus  @default(GRANTED)
+  maxWorkers         Int               @default(1)
+  maxDutyCyclePct    Int               @default(25)
+  maxTaskSeconds     Int               @default(15)
+  allowOnBattery     Boolean           @default(false)
+  grantedAt          DateTime          @default(now())
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  revokeReason       String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  events             CpuConsentEvent[]
+  sessions           CpuSession[]
+
+  @@index([userId, status, expiresAt])
+  @@index([clientInstanceHash, status])
+}
+
+// Immutable evidence for explicit grant/revoke actions and retry safety.
+model CpuConsentEvent {
+  id             String           @id @default(cuid())
+  consentId      String
+  consent        CpuConsent       @relation(fields: [consentId], references: [id], onDelete: Restrict)
+  action         CpuConsentAction
+  idempotencyKey String           @unique
+  policyVersion  String
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+
+  @@index([consentId, createdAt])
+}
+
+enum CpuSessionStatus {
+  ACTIVE
+  PAUSED
+  STOPPED
+  EXPIRED
+  CONSENT_REVOKED
+  HIDDEN_STOP
+  THERMAL_STOP
+  RESOURCE_STOP
+}
+
+enum ThermalState {
+  UNKNOWN
+  NOMINAL
+  WARM
+  HOT
+  CRITICAL
+}
+
+model CpuSession {
+  id                 String                  @id @default(cuid())
+  userId             String
+  user               User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  consentId          String
+  consent            CpuConsent              @relation(fields: [consentId], references: [id], onDelete: Restrict)
+  status             CpuSessionStatus        @default(ACTIVE)
+  userInitiated      Boolean                 @default(true)
+  isVisible          Boolean                 @default(true)
+  maxWorkers         Int
+  maxDutyCyclePct    Int
+  maxTaskSeconds     Int
+  startedAt          DateTime                @default(now())
+  lastHeartbeatAt    DateTime                @default(now())
+  expiresAt          DateTime
+  endedAt            DateTime?
+  cooldownEligibleAt DateTime?
+  stopReason         String?
+  issuedTaskCount    Int                     @default(0)
+  completedTaskCount Int                     @default(0)
+  validatedWorkUnits Int                     @default(0)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  tasks              ComputeTask[]
+  results            ComputeResult[]
+  observations       CpuSessionObservation[]
+
+  @@index([userId, status, startedAt])
+  @@index([consentId, status])
+  @@index([status, lastHeartbeatAt])
+}
+
+// Client telemetry is advisory and is never sufficient to award coin.
+model CpuSessionObservation {
+  id              String       @id @default(cuid())
+  cpuSessionId    String
+  cpuSession      CpuSession   @relation(fields: [cpuSessionId], references: [id], onDelete: Restrict)
+  isVisible       Boolean
+  workerCount     Int
+  dutyCyclePct    Int
+  thermalState    ThermalState @default(UNKNOWN)
+  batteryLevelPct Int?
+  isCharging      Boolean?
+  clientSequence  Int
+  observedAt      DateTime
+  receivedAt      DateTime     @default(now())
+
+  @@unique([cpuSessionId, clientSequence])
+  @@index([cpuSessionId, receivedAt])
+}
+
+enum ComputeTaskType {
+  INTEGER_MIX_V1
+}
+
+enum ComputeTaskStatus {
+  ISSUED
+  COMPLETED
+  EXPIRED
+  REJECTED
+}
+
+// Only enum allowlisted algorithms implemented in this repository can be
+// issued. There is deliberately no code, URL, binary, command, or WASM field.
+model ComputeTask {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cpuSessionId   String
+  cpuSession     CpuSession        @relation(fields: [cpuSessionId], references: [id], onDelete: Restrict)
+  type           ComputeTaskType
+  version        Int
+  nonce          String            @unique
+  inputSeed      String
+  iterations     Int
+  expectedDigest String
+  payloadHash    String
+  signature      String
+  status         ComputeTaskStatus @default(ISSUED)
+  issuedAt       DateTime          @default(now())
+  expiresAt      DateTime
+  completedAt    DateTime?
+  result         ComputeResult?
+
+  @@index([userId, status, expiresAt])
+  @@index([cpuSessionId, status, issuedAt])
+  @@index([type, version, status])
+}
+
+enum ComputeValidationStatus {
+  ACCEPTED
+  INVALID_SIGNATURE
+  EXPIRED
+  REPLAYED
+  WRONG_OUTPUT
+  RESOURCE_LIMIT
+  SESSION_INACTIVE
+  CONSENT_INACTIVE
+}
+
+// Append-only server validation fact. Client-reported work never changes a
+// wallet directly; later reward logic may consume ACCEPTED work only.
+model ComputeResult {
+  id               String                  @id @default(cuid())
+  computeTaskId    String                  @unique
+  computeTask      ComputeTask             @relation(fields: [computeTaskId], references: [id], onDelete: Restrict)
+  userId           String
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  cpuSessionId     String
+  cpuSession       CpuSession              @relation(fields: [cpuSessionId], references: [id], onDelete: Restrict)
+  outputDigest     String
+  elapsedMs        Int
+  workerCount      Int
+  validationStatus ComputeValidationStatus
+  validatedUnits   Int                     @default(0)
+  evidence         Json?
+  submittedAt      DateTime                @default(now())
+  validatedAt      DateTime                @default(now())
+
+  @@index([userId, validationStatus, validatedAt])
+  @@index([cpuSessionId, validatedAt])
 }

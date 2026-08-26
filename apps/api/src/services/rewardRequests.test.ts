@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canTransitionReward, rewardBudgetDecision } from "./rewardRequests.js";
+import {
+  canBeginRewardDelivery,
+  canTransitionReward,
+  rewardBudgetDecision,
+} from "./rewardRequests.js";
 
 test("reward state transitions are strict and terminal states cannot move", () => {
   assert.equal(canTransitionReward("QUEUED", "SENDING"), true);
@@ -19,4 +23,10 @@ test("daily budget admits exactly five ten-Star rewards", () => {
     queued: true,
   });
   assert.deepEqual(rewardBudgetDecision(0, 10, true), { reserve: false, queued: true });
+});
+
+test("approved rewards cannot begin delivery while payout is paused", () => {
+  assert.equal(canBeginRewardDelivery("APPROVED", false), true);
+  assert.equal(canBeginRewardDelivery("APPROVED", true), false);
+  assert.equal(canBeginRewardDelivery("QUEUED", false), false);
 });

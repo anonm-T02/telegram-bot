@@ -8,6 +8,9 @@ import { handleReferral } from "./handlers/referral.js";
 
 const bot = new Bot(env.TELEGRAM_BOT_TOKEN);
 
+process.once("SIGTERM", () => bot.stop());
+process.once("SIGINT", () => bot.stop());
+
 bot.command("start", handleStart);
 bot.command("help", handleHelp);
 bot.command("balance", handleBalance);

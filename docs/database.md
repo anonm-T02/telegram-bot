@@ -144,3 +144,30 @@ allocation.
 transaction that locks wallet value and reserves budget. Initial settings also
 store coin cost, reward units, and the daily limit; changing a setting does not
 rewrite historical request amounts.
+
+## Phase 8 safe compute accounting
+
+CPU contribution permission is separate from Telegram login, click rewards,
+and activity sessions. `CpuConsent` records the exact policy version and low
+resource limits a user explicitly accepted for one privacy-reduced client
+instance. `CpuConsentEvent` is an append-only, idempotent grant/revoke audit
+trail. Revocation is terminal for that consent and must stop its open session.
+
+`CpuSession` requires `userInitiated = true`, stays visible while active, lasts
+at most ten minutes, and records a cooldown at least two minutes after every
+terminal stop. Database constraints cap workers at two, duty cycle at 50%, and
+individual tasks at 30 seconds. Partial unique indexes permit only one granted
+consent per user/client and one active or paused CPU session per user.
+
+`ComputeTask` contains only the enum-allowlisted `INTEGER_MIX_V1` benchmark,
+version 1, bounded iterations, deterministic input, hashes, nonce, expiry, and
+server signature. It deliberately has no source code, executable, command,
+URL, or remote WASM field. Task nonces are unique for replay protection and a
+task expires within 30 seconds.
+
+`ComputeResult` is an append-only server validation fact and is unique per
+task. Rejected results always carry zero validated units; only a correctly
+signed, unexpired, session/consent-valid result may be `ACCEPTED`. It never
+changes a wallet directly. `CpuSessionObservation` is also append-only and
+stores bounded client telemetry for visibility, resource, battery, and thermal
+stop decisions; client telemetry remains advisory rather than trusted proof.
