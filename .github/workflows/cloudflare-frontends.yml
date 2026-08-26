@@ -61,6 +61,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run prisma:generate -w @nova-org/db
+      - run: npm run build:packages
       - name: Require an HTTPS API URL
         shell: bash
         env:
@@ -93,6 +95,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run prisma:generate -w @nova-org/db
+      - run: npm run build:packages
       - name: Require an HTTPS API URL
         shell: bash
         env:
