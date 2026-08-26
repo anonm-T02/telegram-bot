@@ -29,8 +29,11 @@ GitHub `production` environment secrets:
 
 - `CLOUDFLARE_API_TOKEN` (least-privilege Pages edit token)
 - `CLOUDFLARE_ACCOUNT_ID`
-- For optional Google deployment workflows only: `GCP_WORKLOAD_IDENTITY_PROVIDER`
-  and `GCP_SERVICE_ACCOUNT` (prefer Workload Identity; never store a JSON key)
+- `GOOGLE_CLOUD_PROJECT_ID`, `DATABASE_URL`, `REDIS_URL`
+- `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` (required by the
+  Google deploy workflow; use Workload Identity, never a JSON key)
+- `JWT_SECRET`, `SESSION_SECRET`, `WORK_SIGNING_SECRET`, `INTERNAL_API_SECRET`
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`
 
 GitHub environment variables:
 

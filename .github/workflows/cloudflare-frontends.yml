@@ -2,6 +2,10 @@ name: Deploy Cloudflare frontends
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -11,7 +15,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-projects:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Ensure Pages projects exist
+        shell: bash
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          for project in nova-mini-app nova-admin; do
+            status="$(curl --silent --output response.json --write-out '%{http_code}' \
+              --request GET \
+              --header "Authorization: Bearer ${CF_API_TOKEN}" \
+              --header 'Content-Type: application/json' \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects/${project}")"
+            if [[ "$status" == "404" ]]; then
+              curl --silent --show-error --fail \
+                --request POST \
+                --header "Authorization: Bearer ${CF_API_TOKEN}" \
+                --header 'Content-Type: application/json' \
+                --data "{\"name\":\"${project}\",\"production_branch\":\"main\"}" \
+                "https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects" >/dev/null
+            elif [[ "$status" != "200" ]]; then
+              echo "Cloudflare project lookup failed with HTTP ${status}."
+              exit 1
+            fi
+          done
+
   deploy-mini-app:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    needs: prepare-projects
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -25,18 +62,20 @@ jobs:
       - name: Require an HTTPS API URL
         shell: bash
         env:
-          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+          VITE_API_URL: https://api.ilmora.space
         run: '[[ "$VITE_API_URL" == https://* ]]'
       - run: npm run build -w @nova-org/mini-app
         env:
-          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+          VITE_API_URL: https://api.ilmora.space
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/mini-app/dist --project-name=${{ vars.CLOUDFLARE_MINI_APP_PROJECT }} --branch=main
+          command: pages deploy apps/mini-app/dist --project-name=nova-mini-app --branch=main
 
   deploy-admin:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    needs: prepare-projects
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -50,13 +89,13 @@ jobs:
       - name: Require an HTTPS API URL
         shell: bash
         env:
-          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+          VITE_API_URL: https://api.ilmora.space
         run: '[[ "$VITE_API_URL" == https://* ]]'
       - run: npm run build -w @nova-org/admin
         env:
-          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+          VITE_API_URL: https://api.ilmora.space
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/admin/dist --project-name=${{ vars.CLOUDFLARE_ADMIN_PROJECT }} --branch=main
+          command: pages deploy apps/admin/dist --project-name=nova-admin --branch=main
