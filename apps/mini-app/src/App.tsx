@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Card, theme } from "@nova-org/ui";
-import { APP_NAME, COIN_TICKER } from "@nova-org/shared";
+import { APP_NAME } from "@nova-org/shared";
 import { useApiHealth } from "./hooks/useApiHealth.js";
 import { initTelegram } from "./telegram.js";
 
@@ -34,10 +34,13 @@ export function App(): JSX.Element {
       </header>
 
       <Card>
-        <p style={{ margin: 0, color: theme.colors.muted }}>{COIN_TICKER} balance</p>
-        <p style={{ margin: "4px 0 0", fontSize: 32, fontWeight: 600 }}>—</p>
+        <p style={{ margin: 0, color: theme.colors.muted }}>NOVA Coin</p>
+        <p style={{ margin: "8px 0 0", fontSize: 14 }}>
+          Check your balance, claim your daily reward, and get your referral link directly in the
+          bot: <strong>/balance</strong>, <strong>/daily</strong>, <strong>/referral</strong>.
+        </p>
         <p style={{ margin: "8px 0 0", fontSize: 12, color: theme.colors.muted }}>
-          Wallet, tasks, and contribution features ship in Phase 2/3.
+          Tasks and device contribution features ship in a later phase.
         </p>
       </Card>
 

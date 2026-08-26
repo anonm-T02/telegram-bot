@@ -18,6 +18,14 @@ const envSchema = z.object({
 
   WORK_SIGNING_SECRET: z.string().min(16, "WORK_SIGNING_SECRET must be at least 16 characters"),
 
+  // Shared secret used by the bot process to call the API's internal
+  // (non-public) endpoints — e.g. wallet/reward reads and mutations that
+  // only the bot is allowed to trigger. Never exposed to the Mini App.
+  INTERNAL_API_SECRET: z.string().min(16, "INTERNAL_API_SECRET must be at least 16 characters"),
+
+  DAILY_REWARD_AMOUNT: z.coerce.number().int().positive().default(50),
+  REFERRAL_REWARD_AMOUNT: z.coerce.number().int().positive().default(500),
+
   ADMIN_TELEGRAM_IDS: z
     .string()
     .default("")

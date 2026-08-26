@@ -1,10 +1,12 @@
 // NOVA ORG database schema.
 //
-// Phase 1 (Foundation) only wires up the Prisma datasource/client.
-// The full domain schema (users, wallets, coin_transactions, devices,
-// contribution_sessions, work_units, tasks, referrals, services, admin_logs)
-// is introduced in Phase 2 by AGENT 2 (Database + Auth), following
-// NOVA_ORG_AGENT_PLAN.md section 9.
+// Phase 2 (Coin Economy — bot-only surface): users, wallets, coin ledger,
+// daily reward claims, and referrals. Coin balance is never shown or
+// mutated from the Mini App in this phase — only the Telegram bot
+// (via the API's internal, secret-protected endpoints) reads/writes it.
+// See NOVA_ORG_AGENT_PLAN.md section 9 for the full target schema
+// (devices, contribution_sessions, work_units, tasks, services, etc.),
+// which lands in later phases.
 
 generator client {
   provider = "prisma-client-js"
@@ -15,13 +17,83 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Placeholder model so `prisma generate` produces a usable client during
-// Phase 1. Replace with the real schema (users, wallets, coin_transactions,
-// devices, contribution_sessions, work_units, tasks, task_claims,
-// referrals, services, service_usage, admin_logs) in Phase 2.
-model AppMeta {
-  id        Int      @id @default(autoincrement())
-  key       String   @unique
-  value     String
+model User {
+  id           String   @id @default(cuid())
+  telegramId   BigInt   @unique
+  username     String?
+  firstName    String?
+  lastName     String?
+  languageCode String?
+  referralCode String   @unique
+  referredById String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  referredBy   User?             @relation("UserReferrals", fields: [referredById], references: [id])
+  referredUsers User[]           @relation("UserReferrals")
+  wallet       Wallet?
+  transactions CoinTransaction[]
+  dailyClaims  DailyClaim[]
+
+  referralsMade    Referral[] @relation("ReferrerRelation")
+  referralReceived Referral?  @relation("ReferredRelation")
+}
+
+model Wallet {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  balance     Int      @default(0)
+  totalEarned Int      @default(0)
+  totalSpent  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+enum CoinTransactionType {
+  DAILY_REWARD
+  REFERRAL_REWARD
+  ADMIN_GRANT
+}
+
+model CoinTransaction {
+  id            String              @id @default(cuid())
+  userId        String
+  user          User                @relation(fields: [userId], references: [id])
+  walletId      String
+  type          CoinTransactionType
+  amount        Int
+  referenceType String?
+  referenceId   String?
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+}
+
+// One row per (user, UTC day) — the unique constraint is what makes the
+// daily reward endpoint idempotent under concurrent/duplicate requests.
+model DailyClaim {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  claimDate DateTime @db.Date
+  amount    Int
   createdAt DateTime @default(now())
+
+  @@unique([userId, claimDate])
+}
+
+enum ReferralStatus {
+  PENDING
+  REWARDED
+}
+
+model Referral {
+  id             String         @id @default(cuid())
+  referrerUserId String
+  referrer       User           @relation("ReferrerRelation", fields: [referrerUserId], references: [id])
+  referredUserId String         @unique
+  referred       User           @relation("ReferredRelation", fields: [referredUserId], references: [id])
+  status         ReferralStatus @default(PENDING)
+  reward         Int            @default(0)
+  createdAt      DateTime       @default(now())
 }

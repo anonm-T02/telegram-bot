@@ -8,3 +8,42 @@ export interface HealthCheckResponse {
   service: string;
   timestamp: string;
 }
+
+/**
+ * Bot <-> API internal contract for Phase 2 (Coin Economy, bot-only
+ * surface). These endpoints are never called from the Mini App/browser —
+ * only from the trusted Telegram bot process, using a shared secret.
+ */
+export interface EnsureUserRequest {
+  telegramId: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  languageCode?: string;
+  referralCodeUsed?: string;
+}
+
+export interface EnsureUserResponse {
+  userId: string;
+  referralCode: string;
+  isNewUser: boolean;
+}
+
+export interface WalletResponse {
+  balance: number;
+  totalEarned: number;
+  totalSpent: number;
+}
+
+export interface DailyRewardResponse {
+  claimed: boolean;
+  alreadyClaimedToday: boolean;
+  amount: number;
+  balance: number;
+}
+
+export interface ReferralStatsResponse {
+  referralCode: string;
+  invitedCount: number;
+  totalEarned: number;
+}

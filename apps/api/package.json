@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@nova-org/config": "0.1.0",
+    "@nova-org/db": "0.1.0",
     "@nova-org/shared": "0.1.0",
     "@nova-org/validation": "0.1.0",
     "fastify": "^4.28.1"

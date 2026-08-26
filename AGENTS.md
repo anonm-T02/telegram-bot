@@ -16,12 +16,18 @@ the relevant section of that file for the module you're touching.
    `packages/config`.
 9. Log/audit every significant mutation.
 10. Run typecheck/build before considering a task finished.
+11. Coin/wallet is a bot-only surface for now (project decision) — the
+    Mini App must not display or mutate balance/wallet data. Wallet
+    mutations only happen via the API's `/internal/*` routes, which are
+    only ever called by the bot process (guarded by `INTERNAL_API_SECRET`).
 
 ## Commands
 
 ```bash
 npm install                # install all workspaces
 npm run docker:up          # start Postgres + Redis
+npm run prisma:generate -w @nova-org/db   # generate Prisma client
+npm run prisma:deploy -w @nova-org/db     # apply migrations
 npm run dev:api            # Fastify API (http://localhost:4000)
 npm run dev:bot            # Telegram bot (long polling)
 npm run dev:mini-app       # Mini App (http://localhost:5173)
