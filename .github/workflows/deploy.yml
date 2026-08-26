@@ -1,0 +1,61 @@
+name: Build and Deploy NOVA ORG
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  test-and-build:
+    name: Test and Build Monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Workspace Dependencies
+        run: npm ci
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Unit Tests
+        run: |
+          npm run test -w @nova-org/api
+          npm run test -w @nova-org/validator
+          npm run test -w @nova-org/server-worker
+
+      - name: Authenticate to Google Cloud
+        if: github.ref == 'refs/heads/main'
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: nova-org-506716
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: nova-github-deploy@nova-org-506716.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        if: github.ref == 'refs/heads/main'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP Artifact Registry
+        if: github.ref == 'refs/heads/main'
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build Production Docker Image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker build -t us-central1-docker.pkg.dev/nova-org-506716/nova-repo/nova-api:${{ github.sha }} -f infra/docker/Dockerfile .

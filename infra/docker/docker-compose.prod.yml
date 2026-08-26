@@ -1,0 +1,124 @@
+name: nova-org-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nova}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nova_prod_password_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-nova_org}
+    volumes:
+      - nova_postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nova} -d ${POSTGRES_DB:-nova_org}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nova_internal
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - nova_redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - nova_internal
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    restart: always
+    command: node apps/api/dist/index.js
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nova}:${POSTGRES_PASSWORD:-nova_prod_password_change_me}@postgres:5432/${POSTGRES_DB:-nova_org}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET}
+      WORK_SIGNING_SECRET: ${WORK_SIGNING_SECRET}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      APP_URL: ${APP_URL}
+      API_URL: ${API_URL}
+      ADMIN_URL: ${ADMIN_URL}
+      ADMIN_TELEGRAM_IDS: ${ADMIN_TELEGRAM_IDS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nova_internal
+
+  bot:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    restart: always
+    command: node apps/bot/dist/index.js
+    environment:
+      NODE_ENV: production
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      API_URL: http://api:4000
+      APP_URL: ${APP_URL}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - nova_internal
+
+  server-worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    restart: always
+    command: node workers/server-worker/dist/index.js
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-nova}:${POSTGRES_PASSWORD:-nova_prod_password_change_me}@postgres:5432/${POSTGRES_DB:-nova_org}
+      REDIS_URL: redis://redis:6379
+      WORK_SIGNING_SECRET: ${WORK_SIGNING_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nova_internal
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../nginx/nova-org.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - nova_nginx_logs:/var/log/nginx
+    depends_on:
+      - api
+    networks:
+      - nova_internal
+
+volumes:
+  nova_postgres_prod_data:
+  nova_redis_prod_data:
+  nova_nginx_logs:
+
+networks:
+  nova_internal:
+    driver: bridge

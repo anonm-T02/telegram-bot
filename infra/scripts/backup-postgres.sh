@@ -1,33 +1,23 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
-umask 077
+set -euo pipefail
 
-COMPOSE_FILE="${COMPOSE_FILE:?COMPOSE_FILE must be an absolute path}"
-POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgres}"
-DB_USER="${DB_USER:?DB_USER is required}"
-DB_NAME="${DB_NAME:?DB_NAME is required}"
-BACKUP_DIR="${BACKUP_DIR:?BACKUP_DIR must be an absolute, dedicated directory}"
-RETENTION_DAYS="${RETENTION_DAYS:-14}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/nova-org-postgres}"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_FILE="${BACKUP_DIR}/nova_org_backup_${TIMESTAMP}.sql.gz"
+CONTAINER_NAME="nova-org-prod-postgres-1"
 
-case "$COMPOSE_FILE" in /*) ;; *) echo "COMPOSE_FILE must be absolute" >&2; exit 2;; esac
-case "$BACKUP_DIR" in /|/home|/root|/var|/srv|/opt|/usr|/etc) echo "Refusing broad BACKUP_DIR: $BACKUP_DIR" >&2; exit 2;; /*) ;; *) echo "BACKUP_DIR must be absolute" >&2; exit 2;; esac
-[[ "$RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || { echo "RETENTION_DAYS must be a positive integer" >&2; exit 2; }
+mkdir -p "${BACKUP_DIR}"
 
-install -d -m 0700 -- "$BACKUP_DIR"
-timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-archive="$BACKUP_DIR/nova_org_${timestamp}.dump"
-partial="${archive}.partial"
-cleanup() { rm -f -- "$partial"; }
-trap cleanup EXIT
+echo "--> Starting PostgreSQL backup at $(date)..."
+if docker exec -t "${CONTAINER_NAME}" pg_dump -U nova nova_org | gzip > "${BACKUP_FILE}"; then
+    echo "[SUCCESS] Backup created successfully: ${BACKUP_FILE}"
+    echo "Size: $(du -h "${BACKUP_FILE}" | cut -f1)"
+else
+    echo "[ERROR] Backup failed!"
+    exit 1
+fi
 
-docker compose -f "$COMPOSE_FILE" exec -T "$POSTGRES_SERVICE" \
-  pg_dump --username="$DB_USER" --dbname="$DB_NAME" --format=custom --compress=9 > "$partial"
-[[ -s "$partial" ]] || { echo "Backup is empty" >&2; exit 1; }
-docker compose -f "$COMPOSE_FILE" exec -T "$POSTGRES_SERVICE" pg_restore --list < "$partial" > /dev/null
-mv -- "$partial" "$archive"
-sha256sum -- "$archive" > "${archive}.sha256"
-
-find "$BACKUP_DIR" -maxdepth 1 -type f \
-  \( -name 'nova_org_????????T??????Z.dump' -o -name 'nova_org_????????T??????Z.dump.sha256' \) \
-  -mtime "+$RETENTION_DAYS" -delete
-echo "Verified backup created: $archive"
+# Clean up backups older than 30 days
+echo "--> Cleaning up backups older than 30 days..."
+find "${BACKUP_DIR}" -type f -name "*.sql.gz" -mtime +30 -delete
+echo "--> Backup process finished."

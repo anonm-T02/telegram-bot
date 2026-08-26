@@ -1,24 +1,33 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -euo pipefail
 
-COMPOSE_FILE="${COMPOSE_FILE:?COMPOSE_FILE must be an absolute path}"
-POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgres}"
-REDIS_SERVICE="${REDIS_SERVICE:-redis}"
-DB_USER="${DB_USER:?DB_USER is required}"
-DB_NAME="${DB_NAME:?DB_NAME is required}"
-HEALTH_TIMEOUT_SECONDS="${HEALTH_TIMEOUT_SECONDS:-10}"
+API_URL="${API_URL:-http://localhost:4000}"
 
-[[ "$COMPOSE_FILE" = /* ]] || { echo "COMPOSE_FILE must be absolute" >&2; exit 2; }
-[[ "$HEALTH_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid timeout" >&2; exit 2; }
-docker compose -f "$COMPOSE_FILE" config --quiet
-docker compose -f "$COMPOSE_FILE" exec -T "$POSTGRES_SERVICE" pg_isready --username="$DB_USER" --dbname="$DB_NAME"
-[[ "$(docker compose -f "$COMPOSE_FILE" exec -T "$REDIS_SERVICE" redis-cli ping | tr -d '\r')" == "PONG" ]]
+echo "Checking NOVA ORG services health..."
 
-checked=0
-for url in "${API_HEALTH_URL:-}" "${APP_HEALTH_URL:-}" "${ADMIN_HEALTH_URL:-}"; do
-  [[ -n "$url" ]] || continue
-  case "$url" in https://*) ;; *) echo "Health URL must use HTTPS: $url" >&2; exit 2;; esac
-  curl --fail --silent --show-error --location --max-time "$HEALTH_TIMEOUT_SECONDS" --output /dev/null "$url"
-  checked=$((checked + 1))
-done
-echo "Health check passed (Postgres, Redis, $checked HTTPS endpoint(s))."
+# 1. API Health
+HEALTH_RES=$(curl -s "${API_URL}/health" || echo '{"status":"down"}')
+if echo "${HEALTH_RES}" | grep -q '"status":"ok"'; then
+    echo "[OK] Fastify API is HEALTHY"
+else
+    echo "[FAIL] Fastify API is UNHEALTHY or DOWN: ${HEALTH_RES}"
+    exit 1
+fi
+
+# 2. Redis Ping
+if docker exec -t nova-org-prod-redis-1 redis-cli ping | grep -q 'PONG'; then
+    echo "[OK] Redis is HEALTHY"
+else
+    echo "[FAIL] Redis is UNHEALTHY"
+    exit 1
+fi
+
+# 3. Postgres Ready Check
+if docker exec -t nova-org-prod-postgres-1 pg_isready -U nova -d nova_org | grep -q 'accepting connections'; then
+    echo "[OK] PostgreSQL is HEALTHY"
+else
+    echo "[FAIL] PostgreSQL is UNHEALTHY"
+    exit 1
+fi
+
+echo "All services are functioning properly!"

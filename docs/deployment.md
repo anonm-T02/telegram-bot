@@ -1,96 +1,121 @@
-# Production deployment and recovery
+# NOVA ORG — Production Deployment & Administration Guide
 
-This runbook covers a single Ubuntu VPS using Docker Compose. Production must
-use a separate Compose override with images, secrets, health checks, persistent
-volumes, and no public Postgres or Redis ports. Never copy development values
-from `.env.example` into production.
+This document provides complete instructions for deploying NOVA ORG to production servers (VPS) according to Section 25 (AGENT 10) and Section 26 (Phase 5) of `NOVA_ORG_AGENT_PLAN.md`.
 
-## Inputs required from the operator
+---
 
-- VPS address and an unprivileged sudo-capable deploy user
-- DNS names for Mini App, API, and admin panel
-- TLS certificate method and renewal owner
-- absolute production Compose file path and approved immutable image digests
-- Telegram token and generated application secrets in a root-readable env file
-- Postgres database/user names and a dedicated absolute backup directory
-- backup retention, encrypted off-host storage, monitoring, and maintenance window
+## 1. Server Prerequisites
 
-Secrets must not appear in Git, shell history, cron lines, image layers, or
-logs. Restrict the production env file and backup directory to mode `0600` and
-`0700`. Allow inbound SSH, HTTP, and HTTPS only; restrict admin access further.
+- **OS**: Ubuntu 24.04 LTS (recommended) or Debian 12
+- **Hardware**: 2 CPU cores, 4 GB RAM, 40 GB SSD minimum
+- **Domains**: 3 subdomains pointing to your server's IP address:
+  - `app.yourdomain.com` (Telegram Mini App)
+  - `api.yourdomain.com` (Fastify API)
+  - `admin.yourdomain.com` (Admin Control Panel)
 
-## Deployment
+---
 
-1. Confirm DNS, firewall, disk space, Docker/Compose versions, TLS, and an
-   independently tested recent backup.
-2. Pull approved immutable images and validate the merged Compose configuration.
-3. In a maintenance window, run migrations as a one-off container, then start
-   services with the approved Compose project.
-4. Run `infra/scripts/health-check.sh`. Verify Telegram login, one idempotent
-   click, admin authentication, and audit logging.
-5. Retain the previous image digest until the observation window ends.
+## 2. Server Initial Setup
 
-Required health-check environment:
+### Step 1: Install Docker & Docker Compose
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y curl git ufw fail2ban
 
-```text
-COMPOSE_FILE=/srv/nova/compose.production.yml
-POSTGRES_SERVICE=postgres
-REDIS_SERVICE=redis
-DB_USER=<production database user>
-DB_NAME=<production database name>
-API_HEALTH_URL=https://api.example.com/api/health
-APP_HEALTH_URL=https://app.example.com/
-ADMIN_HEALTH_URL=https://admin.example.com/
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
 ```
 
-## Backups and retention
-
-`backup-postgres.sh` writes a compressed custom-format archive, validates its
-catalog, generates a SHA-256 checksum, and deletes only matching expired files
-inside the dedicated directory. Also copy it to encrypted off-host storage.
-
-Use a root-readable environment file such as `/etc/nova/backup.env`:
-
-```text
-COMPOSE_FILE=/srv/nova/compose.production.yml
-POSTGRES_SERVICE=postgres
-DB_USER=<production database user>
-DB_NAME=<production database name>
-BACKUP_DIR=/srv/nova-backups/postgres
-RETENTION_DAYS=14
+### Step 2: Configure UFW Firewall
+```bash
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
 ```
 
-Example root crontab entry (the env file must contain shell-safe values):
+---
 
+## 3. Deployment Setup
+
+### Step 1: Clone Repository & Create `.env`
+```bash
+git clone https://github.com/your-org/nova-org.git /opt/nova-org
+cd /opt/nova-org
+
+cp .env.example .env
+nano .env
+```
+
+Set production secrets in `.env`:
+```env
+NODE_ENV=production
+TELEGRAM_BOT_TOKEN=123456789:ABCDefghIJKlmnOPQRstuvWXYZ
+TELEGRAM_BOT_USERNAME=NovaOrgBot
+
+APP_URL=https://app.yourdomain.com
+API_URL=https://api.yourdomain.com
+ADMIN_URL=https://admin.yourdomain.com
+
+DATABASE_URL=postgresql://nova:SUPER_STRONG_PASSWORD@postgres:5432/nova_org
+POSTGRES_USER=nova
+POSTGRES_PASSWORD=SUPER_STRONG_PASSWORD
+POSTGRES_DB=nova_org
+
+REDIS_URL=redis://redis:6379
+
+JWT_SECRET=super_secret_jwt_key_32_characters_long
+SESSION_SECRET=super_secret_session_key_32_chars
+WORK_SIGNING_SECRET=super_secret_work_key_32_chars
+INTERNAL_API_SECRET=super_secret_internal_key_32_chars
+
+ADMIN_TELEGRAM_IDS=6536916039
+```
+
+### Step 2: SSL Certificate Generation (Let's Encrypt / Certbot)
+```bash
+sudo apt install -y certbot
+sudo certbot certonly --standalone -d app.yourdomain.com -d api.yourdomain.com -d admin.yourdomain.com
+```
+
+---
+
+## 4. Launching Production Stack
+
+Run the automated deployment script:
+```bash
+chmod +x infra/scripts/*.sh
+./infra/scripts/deploy.sh
+```
+
+---
+
+## 5. Automated Backups & Health Checks
+
+Add Cron jobs for daily database backups and uptime monitoring:
+```bash
+crontab -e
+```
+
+Add lines:
 ```cron
-17 2 * * * set -a; . /etc/nova/backup.env; set +a; /srv/nova/infra/scripts/backup-postgres.sh >>/var/log/nova-backup.log 2>&1
+# Daily database backup at 03:00 AM
+0 3 * * * /opt/nova-org/infra/scripts/backup-postgres.sh >> /var/log/nova-backup.log 2>&1
+
+# Health check every 5 minutes
+*/5 * * * * /opt/nova-org/infra/scripts/health-check.sh >> /var/log/nova-health.log 2>&1
 ```
 
-Alert on missed jobs and low disk space. Test restoration into an isolated
-database monthly; checksum verification alone does not prove recovery.
+---
 
-## Restore
+## 6. Verification
 
-Restore is destructive to the target database. Stop public traffic, confirm the
-target twice, retain a pre-restore backup, and prefer an isolated database first.
-
-```text
-COMPOSE_FILE=/srv/nova/compose.production.yml
-POSTGRES_SERVICE=postgres
-DB_USER=<production database user>
-DB_NAME=<confirmed target database>
-BACKUP_DIR=/srv/nova-backups/postgres
-RESTORE_FILE=/srv/nova-backups/postgres/nova_org_YYYYMMDDTHHMMSSZ.dump
-RESTORE_CONFIRM=RESTORE_NOVA_ORG
+Check running services:
+```bash
+docker compose -f infra/docker/docker-compose.prod.yml ps
 ```
 
-Export these values and run `infra/scripts/restore-postgres.sh`. Afterwards,
-apply matching migrations, run health checks and smoke tests, inspect logs, and
-only then reopen traffic.
-
-## Rollback
-
-On failure, stop traffic and preserve logs. Roll back to the previous immutable
-image only when its schema is forward-compatible. Never automatically reverse a
-database migration. Otherwise use the reviewed restore procedure and pre-deploy
-backup. Record image digests, migration version, and recovery decisions.
+All 6 production services (`postgres`, `redis`, `api`, `bot`, `server-worker`, `nginx`) should be running cleanly with zero errors.
