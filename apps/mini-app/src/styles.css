@@ -1,17 +1,436 @@
 :root {
   color-scheme: dark;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #05090d;
   color: #eaf4f5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 280px;
+  min-height: 100vh;
+  background: radial-gradient(circle at 50% 20%, #0c2028 0, #05090d 42%);
+}
+button {
+  font: inherit;
+}
 #root {
   min-height: 100vh;
   display: flex;
+}
+.app-shell {
+  flex: 1;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(18px, env(safe-area-inset-top)) 16px calc(86px + env(safe-area-inset-bottom));
+  display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+h2 {
+  margin: 5px 0 0;
+  font-size: 19px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.topbar > div {
+  display: grid;
+  gap: 2px;
+}
+.eyebrow,
+.label,
+.unit,
+.daily-row,
+.remaining,
+.connection,
+.balance span,
+.balance small {
+  color: #7f9198;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.connection--success {
+  color: #40c78b;
+}
+.connection--error,
+.error-panel,
+.feedback--error {
+  color: #d95c5c;
+}
+.panel,
+.core-panel {
+  border: 1px solid rgba(68, 220, 235, 0.18);
+  background: rgba(10, 17, 24, 0.94);
+  border-radius: 14px;
+}
+.session-panel {
+  padding: 13px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.session-panel strong {
+  color: #40c78b;
+  font-size: 12px;
+}
+.core-panel {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 490px;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.02),
+    0 20px 60px rgba(0, 0, 0, 0.25);
+}
+.core-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 16px;
+}
+h1 {
+  margin: 5px 0 0;
+  font-size: clamp(28px, 9vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.unit {
+  color: #36dde8;
+  text-align: right;
+}
+.balance {
+  margin-top: 22px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 7px;
+}
+.balance strong {
+  font-size: 25px;
+  color: #d5a84b;
+  font-variant-numeric: tabular-nums;
+}
+.coin-button {
+  width: 180px;
+  height: 180px;
+  margin: 22px auto 18px;
+  padding: 22px;
+  border: 1px solid #36dde8;
+  border-radius: 50%;
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  color: #eaf4f5;
+  background: radial-gradient(circle at 40% 30%, #19424c, #0a151c 65%);
+  box-shadow:
+    0 0 0 8px rgba(54, 221, 232, 0.04),
+    0 0 44px rgba(54, 221, 232, 0.15);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform 0.12s ease,
+    opacity 0.2s ease;
+}
+.coin-button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.coin-button:focus-visible {
+  outline: 3px solid #d5a84b;
+  outline-offset: 5px;
+}
+.coin-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+.coin-button__mark {
+  font-size: 62px;
+  font-weight: 800;
+  line-height: 0.8;
+  color: #36dde8;
+}
+.coin-button span:last-child {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.feedback {
+  min-height: 34px;
+  text-align: center;
+  color: #9eb0b6;
+  font-size: 13px;
+}
+.daily-row {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+}
+.daily-row strong {
+  color: #eaf4f5;
+}
+.progress-track {
+  height: 7px;
+  margin-top: 9px;
+  overflow: hidden;
+  background: #14212a;
+  border-radius: 99px;
+}
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #34c8b6, #36dde8);
+  transition: width 0.25s ease;
+}
+.remaining {
+  margin: 9px 0 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.error-panel {
+  padding: 14px;
+  font-size: 13px;
+}
+.bottom-nav {
+  position: fixed;
+  z-index: 10;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: min(100%, 480px);
+  margin: auto;
+  padding: 9px 16px max(9px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  border-top: 1px solid rgba(68, 220, 235, 0.18);
+  background: rgba(5, 9, 13, 0.96);
+  backdrop-filter: blur(12px);
+}
+.bottom-nav button {
+  min-height: 48px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  color: #7f9198;
+  background: transparent;
+  cursor: pointer;
+}
+.bottom-nav button span {
+  font-size: 17px;
+  line-height: 1;
+}
+.bottom-nav button[aria-current="page"] {
+  border-color: rgba(54, 221, 232, 0.24);
+  color: #36dde8;
+  background: rgba(54, 221, 232, 0.06);
+}
+.bottom-nav button:focus-visible,
+.link-box button:focus-visible,
+.secondary-button:focus-visible {
+  outline: 2px solid #d5a84b;
+  outline-offset: 2px;
+}
+.referral-view {
+  display: grid;
+  gap: 14px;
+}
+.screen-heading p,
+.rules p,
+.milestones p,
+.rewards-summary p,
+.state-panel p {
+  margin: 8px 0 0;
+  color: #9eb0b6;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.invite-card,
+.milestones,
+.rewards-summary,
+.referral-list,
+.state-panel {
+  padding: 17px;
+}
+.referral-list ul {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.referral-list li {
+  padding: 12px 0;
+  border-top: 1px solid rgba(68, 220, 235, 0.12);
+}
+.referral-list__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.referral-list__heading span {
+  color: #40c78b;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.milestone-chips {
+  margin-top: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.milestone-chips span {
+  padding: 5px 7px;
+  border-radius: 6px;
+  color: #9eb0b6;
+  background: #101b22;
+  font-size: 10px;
+  text-transform: lowercase;
+}
+.referral-metrics {
+  margin: 8px 0 0;
+  color: #7f9198;
+  font-size: 11px;
+}
+.link-box {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.link-box span {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  color: #9edce1;
+  background: #071016;
+  border: 1px solid rgba(68, 220, 235, 0.14);
+  border-radius: 9px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.link-box button,
+.secondary-button {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #36dde8;
+  border-radius: 9px;
+  color: #051015;
+  background: #36dde8;
+  font-weight: 700;
+  cursor: pointer;
+}
+.assistive-status {
+  min-height: 18px;
+  margin: 6px 0 0;
+  color: #40c78b;
+  font-size: 12px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+.metric {
+  padding: 14px;
+  display: grid;
+  gap: 5px;
+}
+.metric span,
+.rewards-summary span {
+  color: #7f9198;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.metric strong {
+  color: #36dde8;
+  font-size: 23px;
+  font-variant-numeric: tabular-nums;
+}
+.rewards-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.rewards-summary div {
+  display: grid;
+  gap: 5px;
+}
+.rewards-summary strong {
+  color: #d5a84b;
+  font-size: 14px;
+}
+.rewards-summary p {
+  grid-column: 1 / -1;
+}
+.milestones ol {
+  margin: 15px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.milestones li {
+  padding: 13px 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  border-top: 1px solid rgba(68, 220, 235, 0.12);
+}
+.step-number {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-content: center;
+  border: 1px solid rgba(54, 221, 232, 0.35);
+  border-radius: 50%;
+  color: #36dde8;
+  font-size: 11px;
+}
+.milestones p {
+  margin-top: 3px;
+}
+.milestones small {
+  max-width: 90px;
+  color: #d5a84b;
+  text-align: right;
+}
+.rules {
+  padding: 5px 3px;
+}
+.state-panel--error {
+  color: #d95c5c;
+}
+@media (max-height: 650px) {
+  .coin-button {
+    width: 145px;
+    height: 145px;
+    margin: 15px auto 12px;
+  }
+  .coin-button__mark {
+    font-size: 46px;
+  }
+  .core-panel {
+    min-height: 400px;
+  }
+  .balance {
+    margin-top: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coin-button,
+  .progress-track span {
+    transition: none;
+  }
 }

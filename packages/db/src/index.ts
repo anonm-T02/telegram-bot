@@ -15,5 +15,22 @@ if (process.env.NODE_ENV !== "production") {
   globalThis.__novaPrisma = prisma;
 }
 
-export { PrismaClient, Prisma, CoinTransactionType, ReferralStatus } from "@prisma/client";
-export type { User, Wallet, CoinTransaction, DailyClaim, Referral } from "@prisma/client";
+export {
+  PrismaClient,
+  Prisma,
+  ActivitySessionStatus,
+  ActivityState,
+  CoinTransactionType,
+  ReferralStatus,
+  UserStatus,
+} from "@prisma/client";
+export type {
+  ActivitySession,
+  CoinTransaction,
+  DailyClaim,
+  Heartbeat,
+  Referral,
+  TelegramSession,
+  User,
+  Wallet,
+} from "@prisma/client";

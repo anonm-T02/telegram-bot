@@ -6,6 +6,21 @@
 GET /health
 ```
 
+## Authenticated account
+
+These routes require `Authorization: Bearer <session-token>`. The token must be
+valid and match a live, non-revoked database session.
+
+```
+GET  /me
+POST /me/deletion-request    { reason? }
+```
+
+`GET /me` returns only minimal profile data and current session metadata. It
+does not expose wallet or balance data. A deletion request is idempotent while
+pending and creates a reviewable record; it never immediately hard-deletes the
+account. See `docs/privacy.md` for the lifecycle and retention notes.
+
 ## Internal (bot-only)
 
 Guarded by an `x-internal-secret` header that must match

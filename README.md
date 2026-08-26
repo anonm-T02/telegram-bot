@@ -5,12 +5,10 @@ opt-in device contribution platform.
 
 Full product/technical plan: [`NOVA_ORG_AGENT_PLAN.md`](./NOVA_ORG_AGENT_PLAN.md).
 
-> **Status:** Phase 2 — Coin Economy (bot-only surface). Wallet balance,
-> daily reward, and referral reward are implemented and live entirely in
-> the Telegram bot (`/balance`, `/daily`, `/referral`) — the Mini App does
-> **not** show coin/wallet data. Coin only ever changes through the
-> backend ledger (`packages/db`), never from client input. Tasks,
-> services, and device contribution are not implemented yet.
+> **Status:** Integrated Phase 4 complete and running locally. Telegram
+> auth/session/activity, server-authoritative clicks, referral milestones,
+> fraud signals, and risk-gated rewards are implemented. All migrations are
+> applied to the local PostgreSQL test database.
 
 ## Prerequisites
 
@@ -139,7 +137,31 @@ docs/         Architecture, API, database, security docs
   referral deep link), `/balance`, `/daily`, `/referral`, `/help`.
 - The Mini App intentionally shows no coin/wallet data in this phase.
 
-## What's next (Phase 3+)
+## What's complete (Integrated Phase 2)
 
-- Energy system, tasks, service catalog, and eventually device
-  contribution + validator + reward engine (see plan sections 11-16).
+- Telegram `initData` validation and ACTIVE-user authorization.
+- Short-lived access tokens, rotating refresh tokens, and logout/revocation.
+- Activity heartbeat with active/idle/background/offline states.
+- One rewardable session per user and global stale-session expiry.
+- Minimal `/me` and idempotent account deletion request.
+- Auth lifecycle tests: 10 passing.
+
+## What's complete (Integrated Phase 3)
+
+- Server-authoritative click engine with a two-second cooldown.
+- At most 1,000 confirmed clicks per UTC day.
+- Integer microcoin ledger, request idempotency, and concurrent-click protection.
+- Exact authenticated/rewardable activity-session binding.
+- Mini App coin button, server balance, cooldown, and daily progress UI.
+
+## What's complete (Integrated Phase 4)
+
+- Referral milestones and pending-to-available rewards.
+- Referral daily quality-bonus queue.
+- Fraud signals and risk scoring.
+
+## What's next (Integrated Phase 5)
+
+- Reward request state machine and locked balances.
+- Test/Manual reward providers.
+- Global daily Stars-equivalent budget and emergency payout pause.

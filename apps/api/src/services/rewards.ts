@@ -28,7 +28,7 @@ export async function claimDailyReward(telegramId: bigint): Promise<DailyRewardR
     throw new UserNotFoundError(telegramId);
   }
 
-  const amount = env.DAILY_REWARD_AMOUNT;
+  const amount = BigInt(env.DAILY_REWARD_AMOUNT);
   const claimDate = todayUtc();
 
   try {
@@ -54,14 +54,19 @@ export async function claimDailyReward(telegramId: bigint): Promise<DailyRewardR
       return updatedWallet;
     });
 
-    return { claimed: true, alreadyClaimedToday: false, amount, balance: wallet.balance };
+    return {
+      claimed: true,
+      alreadyClaimedToday: false,
+      amount: amount.toString(),
+      balance: wallet.balance.toString(),
+    };
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return {
         claimed: false,
         alreadyClaimedToday: true,
-        amount,
-        balance: user.wallet.balance,
+        amount: amount.toString(),
+        balance: user.wallet.balance.toString(),
       };
     }
     throw error;

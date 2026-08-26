@@ -24,11 +24,13 @@ export async function handleStart(ctx: CommandContext<Context>): Promise<void> {
 
   await ctx.reply(
     `Welcome to ${APP_NAME}!\n\n` +
-      `Your ${COIN_TICKER} balance lives right here in the bot:\n` +
+      `Tap inside the Mini App to earn server-confirmed microcoins. Each valid tap has a cooldown and daily limit.\n\n` +
+      `Your ${COIN_TICKER} wallet stays securely in this bot:\n` +
       "/balance - check your balance\n" +
       "/daily - claim your daily reward\n" +
       "/referral - get your invite link and stats\n\n" +
-      "Open the Mini App for tasks and device contribution.",
+      "Rewards are checked by the server. Device contribution is separate and never starts without your explicit consent.\n\n" +
+      "Open the Mini App to begin.",
     { reply_markup: keyboard },
   );
 }

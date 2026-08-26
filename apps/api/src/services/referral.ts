@@ -20,6 +20,6 @@ export async function getReferralStats(telegramId: bigint): Promise<ReferralStat
   return {
     referralCode: user.referralCode,
     invitedCount,
-    totalEarned: rewardAggregate._sum.reward ?? 0,
+    totalEarned: (rewardAggregate._sum.reward ?? 0n).toString(),
   };
 }

@@ -16,10 +16,11 @@ the relevant section of that file for the module you're touching.
    `packages/config`.
 9. Log/audit every significant mutation.
 10. Run typecheck/build before considering a task finished.
-11. Coin/wallet is a bot-only surface for now (project decision) — the
-    Mini App must not display or mutate balance/wallet data. Wallet
-    mutations only happen via the API's `/internal/*` routes, which are
-    only ever called by the bot process (guarded by `INTERNAL_API_SECRET`).
+11. Starting in integrated Phase 3, the Mini App may display balances and
+    request server-authoritative click rewards through authenticated public
+    endpoints. It must never submit reward amounts or mutate a wallet directly;
+    every balance change is an idempotent backend-ledger transaction. Existing
+    `/internal/*` routes remain bot-only and guarded by `INTERNAL_API_SECRET`.
 
 ## Commands
 

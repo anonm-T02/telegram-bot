@@ -6,7 +6,7 @@ type HealthState =
   | { status: "error"; message: string }
   | { status: "success"; data: HealthCheckResponse };
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+const API_URL = import.meta.env.VITE_API_URL ?? "/api";
 
 export function useApiHealth(): HealthState {
   const [state, setState] = useState<HealthState>({ status: "loading" });

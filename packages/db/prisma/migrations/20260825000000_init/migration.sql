@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "CoinTransactionType" AS ENUM ('DAILY_REWARD', 'REFERRAL_REWARD', 'ADMIN_GRANT');
 
 -- CreateEnum

@@ -30,20 +30,20 @@ export interface EnsureUserResponse {
 }
 
 export interface WalletResponse {
-  balance: number;
-  totalEarned: number;
-  totalSpent: number;
+  balance: string;
+  totalEarned: string;
+  totalSpent: string;
 }
 
 export interface DailyRewardResponse {
   claimed: boolean;
   alreadyClaimedToday: boolean;
-  amount: number;
-  balance: number;
+  amount: string;
+  balance: string;
 }
 
 export interface ReferralStatsResponse {
   referralCode: string;
   invitedCount: number;
-  totalEarned: number;
+  totalEarned: string;
 }

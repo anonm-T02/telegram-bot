@@ -1,28 +1,37 @@
-/**
- * Telegram Mini Apps SDK bootstrap.
- *
- * Runs a no-op outside of Telegram (e.g. plain browser during local dev)
- * so the skeleton is easy to preview without a Telegram client.
- */
-export function initTelegram(): void {
-  const isInsideTelegram = typeof window !== "undefined" && Boolean(window.Telegram?.WebApp);
+import { init, retrieveRawInitData } from "@telegram-apps/sdk";
 
-  if (!isInsideTelegram) {
-    console.warn("Not running inside Telegram — skipping Telegram SDK init.");
-    return;
+export function initTelegram(): void {
+  try {
+    init();
+    window.Telegram?.WebApp?.ready?.();
+    window.Telegram?.WebApp?.expand?.();
+  } catch (error) {
+    console.warn("Telegram SDK is unavailable in this browser context.", error);
+  }
+}
+
+export function getTelegramInitData(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const sdkInitData = retrieveRawInitData();
+    if (sdkInitData) return sdkInitData;
+  } catch {
+    // Fall back to the legacy Telegram WebApp bridge below.
   }
 
-  import("@telegram-apps/sdk")
-    .then(({ init }) => {
-      init();
-    })
-    .catch((error) => {
-      console.error("Failed to initialize Telegram SDK:", error);
-    });
+  const initData = window.Telegram?.WebApp?.initData;
+  return typeof initData === "string" && initData.length > 0 ? initData : null;
 }
 
 declare global {
   interface Window {
-    Telegram?: { WebApp?: unknown };
+    Telegram?: {
+      WebApp?: {
+        initData?: string;
+        ready?: () => void;
+        expand?: () => void;
+      };
+    };
   }
 }

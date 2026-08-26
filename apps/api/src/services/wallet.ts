@@ -19,8 +19,8 @@ export async function getWalletByTelegramId(telegramId: bigint): Promise<WalletR
   }
 
   return {
-    balance: user.wallet.balance,
-    totalEarned: user.wallet.totalEarned,
-    totalSpent: user.wallet.totalSpent,
+    balance: user.wallet.balance.toString(),
+    totalEarned: user.wallet.totalEarned.toString(),
+    totalSpent: user.wallet.totalSpent.toString(),
   };
 }

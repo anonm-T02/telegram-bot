@@ -1,7 +1,7 @@
 // NOVA ORG database schema.
 //
-// Phase 2 (Coin Economy — bot-only surface): users, wallets, coin ledger,
-// daily reward claims, and referrals. Coin balance is never shown or
+// Phase 2: Telegram identity/auth sessions and activity heartbeats, plus the
+// existing bot-only coin surface. Coin balance is never shown or
 // mutated from the Mini App in this phase — only the Telegram bot
 // (via the API's internal, secret-protected endpoints) reads/writes it.
 // See NOVA_ORG_AGENT_PLAN.md section 9 for the full target schema
@@ -18,55 +18,367 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  telegramId   BigInt   @unique
+  id           String     @id @default(cuid())
+  telegramId   BigInt     @unique
   username     String?
   firstName    String?
   lastName     String?
   languageCode String?
-  referralCode String   @unique
+  referralCode String     @unique
   referredById String?
-  status       String   @default("active")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  referredBy   User?             @relation("UserReferrals", fields: [referredById], references: [id])
-  referredUsers User[]           @relation("UserReferrals")
-  wallet       Wallet?
-  transactions CoinTransaction[]
-  dailyClaims  DailyClaim[]
+  referredBy              User?                    @relation("UserReferrals", fields: [referredById], references: [id])
+  referredUsers           User[]                   @relation("UserReferrals")
+  wallet                  Wallet?
+  transactions            CoinTransaction[]
+  dailyClaims             DailyClaim[]
+  telegramSessions        TelegramSession[]
+  activitySessions        ActivitySession[]
+  deletionRequests        AccountDeletionRequest[]
+  clickEvents             ClickEvent[]
+  clickDailyCounters      ClickDailyCounter[]
+  referralLink            ReferralLink?
+  referralMilestones      ReferralMilestone[]      @relation("MilestoneBeneficiary")
+  fraudSignals            FraudSignal[]
+  riskScore               RiskScore?
+  referralReleaseCounters ReferralReleaseCounter[]
+  rewardRequests          RewardRequest[]
 
   referralsMade    Referral[] @relation("ReferrerRelation")
   referralReceived Referral?  @relation("ReferredRelation")
 }
 
+enum AccountDeletionRequestStatus {
+  PENDING
+  CANCELLED
+  COMPLETED
+}
+
+model AccountDeletionRequest {
+  id          String                       @id @default(cuid())
+  userId      String
+  user        User                         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status      AccountDeletionRequestStatus @default(PENDING)
+  reason      String?
+  requestedAt DateTime                     @default(now())
+  resolvedAt  DateTime?
+
+  @@index([userId, status, requestedAt])
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BLOCKED
+  DELETED
+}
+
+enum ActivityState {
+  ONLINE
+  ACTIVE
+  IDLE
+  BACKGROUND
+  OFFLINE
+}
+
+enum ActivitySessionStatus {
+  OPEN
+  CLOSED
+  EXPIRED
+}
+
+model TelegramSession {
+  id               String            @id @default(cuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash        String            @unique
+  refreshTokenHash String?           @unique
+  ipHash           String?
+  userAgent        String?
+  authenticatedAt  DateTime          @default(now())
+  lastUsedAt       DateTime          @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  activitySessions ActivitySession[]
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model ActivitySession {
+  id                String                @id @default(cuid())
+  userId            String
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramSessionId String?
+  telegramSession   TelegramSession?      @relation(fields: [telegramSessionId], references: [id], onDelete: SetNull)
+  state             ActivityState         @default(ONLINE)
+  status            ActivitySessionStatus @default(OPEN)
+  isRewardable      Boolean               @default(false)
+  activeSeconds     Int                   @default(0)
+  startedAt         DateTime              @default(now())
+  lastHeartbeatAt   DateTime              @default(now())
+  endedAt           DateTime?
+  heartbeats        Heartbeat[]
+  clickEvents       ClickEvent[]
+
+  @@unique([telegramSessionId])
+  @@index([userId, status, lastHeartbeatAt])
+  @@index([telegramSessionId])
+  @@index([status, lastHeartbeatAt])
+}
+
+model Heartbeat {
+  id                String          @id @default(cuid())
+  activitySessionId String
+  activitySession   ActivitySession @relation(fields: [activitySessionId], references: [id], onDelete: Cascade)
+  state             ActivityState
+  isVisible         Boolean
+  clientSequence    Int
+  receivedAt        DateTime        @default(now())
+
+  @@unique([activitySessionId, clientSequence])
+  @@index([activitySessionId, receivedAt])
+  @@index([receivedAt])
+}
+
 model Wallet {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  balance     Int      @default(0)
-  totalEarned Int      @default(0)
-  totalSpent  Int      @default(0)
-  updatedAt   DateTime @updatedAt
+  id                            String                         @id @default(cuid())
+  userId                        String                         @unique
+  user                          User                           @relation(fields: [userId], references: [id])
+  balance                       BigInt                         @default(0)
+  lockedBalance                 BigInt                         @default(0)
+  pendingBalance                BigInt                         @default(0)
+  totalEarned                   BigInt                         @default(0)
+  totalSpent                    BigInt                         @default(0)
+  updatedAt                     DateTime                       @updatedAt
+  transactions                  CoinTransaction[]
+  referralPendingReconciliation ReferralPendingReconciliation?
+  rewardRequests                RewardRequest[]
 }
 
 enum CoinTransactionType {
   DAILY_REWARD
   REFERRAL_REWARD
   ADMIN_GRANT
+  CLICK_REWARD
+  REFERRAL_MILESTONE_REWARD
+  REWARD_LOCK
+  REWARD_REFUND
+  REWARD_REDEEM
 }
 
 model CoinTransaction {
-  id            String              @id @default(cuid())
-  userId        String
-  user          User                @relation(fields: [userId], references: [id])
-  walletId      String
-  type          CoinTransactionType
-  amount        Int
-  referenceType String?
-  referenceId   String?
-  metadata      Json?
-  createdAt     DateTime            @default(now())
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id])
+  walletId          String
+  wallet            Wallet              @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  type              CoinTransactionType
+  amount            BigInt
+  referenceType     String?
+  referenceId       String?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  clickEventId      String?             @unique
+  clickEvent        ClickEvent?         @relation(fields: [clickEventId], references: [id], onDelete: Restrict)
+  referralMilestone ReferralMilestone?
+  rewardRequestId   String?
+  rewardRequest     RewardRequest?      @relation(fields: [rewardRequestId], references: [id], onDelete: Restrict)
+
+  @@unique([rewardRequestId, type])
+  @@index([userId, createdAt])
+  @@index([walletId, createdAt])
+  @@index([rewardRequestId, createdAt])
+}
+
+enum RewardRequestStatus {
+  REQUESTED
+  RISK_CHECK
+  APPROVED
+  QUEUED
+  SENDING
+  PAID
+  REVIEW_REQUIRED
+  FAILED
+  REJECTED
+  REFUNDED
+}
+
+enum RewardProviderType {
+  TEST
+  MANUAL
+}
+
+enum RewardTransactionStatus {
+  CREATED
+  SENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum RewardBudgetPoolType {
+  USER_REWARD
+  DISPUTE
+  TEST
+  EMERGENCY
+}
+
+// One request consumes available microcoin by moving it to lockedBalance.
+// requestDate and all monetary/reward values are server-authored.
+model RewardRequest {
+  id               String                    @id @default(cuid())
+  userId           String
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  walletId         String
+  wallet           Wallet                    @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  requestDate      DateTime                  @db.Date
+  idempotencyKey   String                    @unique
+  status           RewardRequestStatus       @default(REQUESTED)
+  coinAmount       BigInt                    @default(100000)
+  rewardUnits      Int                       @default(10)
+  providerType     RewardProviderType        @default(TEST)
+  failureCode      String?
+  failureReason    String?
+  metadata         Json?
+  requestedAt      DateTime                  @default(now())
+  riskCheckedAt    DateTime?
+  approvedAt       DateTime?
+  queuedAt         DateTime?
+  sendingAt        DateTime?
+  completedAt      DateTime?
+  updatedAt        DateTime                  @updatedAt
+  transactions     RewardTransaction[]
+  transitions      RewardRequestTransition[]
+  coinTransactions CoinTransaction[]
+
+  @@unique([userId, requestDate])
+  @@index([status, requestedAt])
+  @@index([walletId, status])
+}
+
+// Provider delivery facts are separate from the internal coin ledger.
+model RewardTransaction {
+  id                String                  @id @default(cuid())
+  rewardRequestId   String                  @unique
+  rewardRequest     RewardRequest           @relation(fields: [rewardRequestId], references: [id], onDelete: Restrict)
+  idempotencyKey    String                  @unique
+  providerType      RewardProviderType
+  status            RewardTransactionStatus @default(CREATED)
+  rewardUnits       Int
+  providerReference String?                 @unique
+  attemptCount      Int                     @default(0)
+  lastErrorCode     String?
+  lastErrorMessage  String?
+  createdAt         DateTime                @default(now())
+  sendingAt         DateTime?
+  sentAt            DateTime?
+  updatedAt         DateTime                @updatedAt
+
+  @@index([status, createdAt])
+}
+
+// Append-only audit trail for every state-machine mutation.
+model RewardRequestTransition {
+  id              String               @id @default(cuid())
+  rewardRequestId String
+  rewardRequest   RewardRequest        @relation(fields: [rewardRequestId], references: [id], onDelete: Restrict)
+  fromStatus      RewardRequestStatus?
+  toStatus        RewardRequestStatus
+  actorType       String
+  actorId         String?
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+
+  @@index([rewardRequestId, createdAt])
+}
+
+// Daily reservation closes the concurrent 50-unit/day budget race.
+model RewardBudget {
+  id            String   @id @default(cuid())
+  budgetDate    DateTime @unique @db.Date
+  dailyLimit    Int      @default(50)
+  reservedUnits Int      @default(0)
+  paidUnits     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Global 5,000-unit allocation split into explicit accounting pools.
+model RewardBudgetPool {
+  id             String               @id @default(cuid())
+  type           RewardBudgetPoolType @unique
+  allocatedUnits Int
+  reservedUnits  Int                  @default(0)
+  spentUnits     Int                  @default(0)
+  updatedAt      DateTime             @updatedAt
+}
+
+// Runtime controls are JSON so admins can update values without deployment.
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ClickEventStatus {
+  ACCEPTED
+  REJECTED
+}
+
+enum ClickRejectionCode {
+  COOLDOWN
+  DAILY_LIMIT
+  SESSION_NOT_REWARDABLE
+  SESSION_INACTIVE
+  USER_INELIGIBLE
+  RISK_REJECTED
+}
+
+// Append-only record of every well-formed click attempt. requestId is the
+// idempotency key supplied by the client; all time and reward fields are set
+// by the server. Database triggers in the migration reject UPDATE and DELETE.
+model ClickEvent {
+  id                String              @id @default(cuid())
+  requestId         String              @unique
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  activitySessionId String
+  activitySession   ActivitySession     @relation(fields: [activitySessionId], references: [id], onDelete: Restrict)
+  status            ClickEventStatus
+  rejectionCode     ClickRejectionCode?
+  rewardAmount      BigInt              @default(0)
+  clickDate         DateTime            @db.Date
+  serverReceivedAt  DateTime            @default(now())
+  acceptedAt        DateTime?
+  transaction       CoinTransaction?
+
+  @@index([userId, clickDate, status])
+  @@index([activitySessionId, serverReceivedAt])
+  @@index([serverReceivedAt])
+}
+
+// Transactionally upserted/locked by the click service. The unique key gives
+// one server-authoritative counter per user and UTC date under concurrency.
+model ClickDailyCounter {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  clickDate      DateTime  @db.Date
+  acceptedCount  Int       @default(0)
+  totalReward    BigInt    @default(0)
+  lastAcceptedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, clickDate])
+  @@index([clickDate, acceptedCount])
 }
 
 // One row per (user, UTC day) — the unique constraint is what makes the
@@ -76,7 +388,7 @@ model DailyClaim {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   claimDate DateTime @db.Date
-  amount    Int
+  amount    BigInt
   createdAt DateTime @default(now())
 
   @@unique([userId, claimDate])
@@ -84,16 +396,198 @@ model DailyClaim {
 
 enum ReferralStatus {
   PENDING
+  ACTIVE
+  QUALITY_QUEUED
+  QUALIFIED
+  REJECTED
   REWARDED
 }
 
 model Referral {
-  id             String         @id @default(cuid())
-  referrerUserId String
-  referrer       User           @relation("ReferrerRelation", fields: [referrerUserId], references: [id])
-  referredUserId String         @unique
-  referred       User           @relation("ReferredRelation", fields: [referredUserId], references: [id])
-  status         ReferralStatus @default(PENDING)
-  reward         Int            @default(0)
-  createdAt      DateTime       @default(now())
+  id                 String              @id @default(cuid())
+  referrerUserId     String
+  referrer           User                @relation("ReferrerRelation", fields: [referrerUserId], references: [id])
+  referredUserId     String              @unique
+  referred           User                @relation("ReferredRelation", fields: [referredUserId], references: [id])
+  status             ReferralStatus      @default(PENDING)
+  reward             BigInt              @default(0)
+  registeredAt       DateTime            @default(now())
+  activeDayCount     Int                 @default(0)
+  activeSeconds      Int                 @default(0)
+  validClickCount    Int                 @default(0)
+  qualityQualifiedAt DateTime?
+  riskCheckedAt      DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
+  milestones         ReferralMilestone[]
+
+  @@index([referrerUserId, status, createdAt])
+  @@index([status, qualityQualifiedAt])
+}
+
+// Canonical, revocable deep-link identity. User.referralCode remains during
+// the compatibility window; the migration backfills exactly one link/user.
+model ReferralLink {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  code      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@index([code, isActive])
+}
+
+enum ReferralMilestoneType {
+  REFERRER_REGISTER
+  REFERRER_ACTIVE_3_DAYS
+  REFERRER_QUALITY_7_DAYS
+  REFERRED_USER_QUALITY
+}
+
+enum ReferralMilestoneStatus {
+  PENDING
+  ELIGIBLE
+  QUEUED
+  RELEASED
+  REJECTED
+}
+
+model ReferralMilestone {
+  id              String                  @id @default(cuid())
+  referralId      String
+  referral        Referral                @relation(fields: [referralId], references: [id], onDelete: Restrict)
+  beneficiaryId   String
+  beneficiary     User                    @relation("MilestoneBeneficiary", fields: [beneficiaryId], references: [id], onDelete: Restrict)
+  type            ReferralMilestoneType
+  status          ReferralMilestoneStatus @default(PENDING)
+  amount          BigInt
+  idempotencyKey  String                  @unique
+  eligibleAt      DateTime?
+  queuedAt        DateTime?
+  releaseDate     DateTime?               @db.Date
+  releasedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  transactionId   String?                 @unique
+  transaction     CoinTransaction?        @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  metadata        Json?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@unique([referralId, type])
+  @@index([beneficiaryId, status, eligibleAt])
+  @@index([status, releaseDate, queuedAt])
+}
+
+// Locked once per referrer/day while releasing quality milestones. This is
+// the database-side concurrency primitive for the maximum five daily releases.
+model ReferralReleaseCounter {
+  id            String   @id @default(cuid())
+  referrerId    String
+  referrer      User     @relation(fields: [referrerId], references: [id], onDelete: Restrict)
+  releaseDate   DateTime @db.Date
+  releasedCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([referrerId, releaseDate])
+  @@index([releaseDate, releasedCount])
+}
+
+// One-time auditable reconciliation for Phase 4 legacy pending obligations.
+// This is not an earned/available coin transaction and therefore does not
+// create a CoinTransaction ledger row.
+model ReferralPendingReconciliation {
+  id                    String                   @id @default(cuid())
+  walletId              String                   @unique
+  wallet                Wallet                   @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  outstandingObligation BigInt
+  balanceBefore         BigInt
+  amountApplied         BigInt
+  balanceAfter          BigInt
+  migrationKey          String                   @unique
+  metadata              Json?
+  createdAt             DateTime                 @default(now())
+  reversal              ReferralPendingReversal?
+
+  @@index([createdAt])
+}
+
+model ReferralPendingReversal {
+  id                String                        @id @default(cuid())
+  reconciliationId  String                        @unique
+  reconciliation    ReferralPendingReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Restrict)
+  walletId          String
+  phantomObligation BigInt
+  validOutstanding  BigInt
+  balanceBefore     BigInt
+  amountReversed    BigInt
+  balanceAfter      BigInt
+  migrationKey      String                        @unique
+  metadata          Json?
+  createdAt         DateTime                      @default(now())
+
+  @@index([walletId, createdAt])
+}
+
+enum FraudSignalType {
+  SHARED_IP
+  SHARED_DEVICE
+  IMPOSSIBLE_ACTIVITY
+  CLICK_PATTERN
+  REFERRAL_CLUSTER
+  SESSION_ANOMALY
+  MANUAL
+}
+
+enum FraudSignalStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+model FraudSignal {
+  id          String            @id @default(cuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  type        FraudSignalType
+  status      FraudSignalStatus @default(OPEN)
+  weight      Int
+  source      String
+  fingerprint String?
+  metadata    Json?
+  detectedAt  DateTime          @default(now())
+  expiresAt   DateTime?
+  resolvedAt  DateTime?
+
+  @@index([userId, status, detectedAt])
+  @@index([type, fingerprint, detectedAt])
+  @@index([status, expiresAt])
+}
+
+enum RiskLevel {
+  NORMAL
+  WATCH
+  REVIEW_REQUIRED
+  TEMPORARY_REWARD_HOLD
+}
+
+model RiskScore {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  score        Int       @default(0)
+  level        RiskLevel @default(NORMAL)
+  reasons      Json?
+  modelVersion String
+  calculatedAt DateTime  @default(now())
+  holdUntil    DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  @@index([level, score, calculatedAt])
 }

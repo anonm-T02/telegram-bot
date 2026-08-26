@@ -1,7 +1,6 @@
 import { Prisma, prisma } from "@nova-org/db";
 import { generateReferralCode } from "@nova-org/shared";
 import type { EnsureUserResponse } from "@nova-org/shared";
-import { env } from "../env.js";
 
 interface EnsureUserInput {
   telegramId: bigint;
@@ -50,9 +49,20 @@ export async function ensureUser(input: EnsureUserInput): Promise<EnsureUserResp
     return { userId: updated.id, referralCode: updated.referralCode, isNewUser: false };
   }
 
-  const referrer = input.referralCodeUsed
-    ? await prisma.user.findUnique({ where: { referralCode: input.referralCodeUsed } })
-    : null;
+  let referrer = null;
+  if (input.referralCodeUsed) {
+    const canonicalLink = await prisma.referralLink.findUnique({
+      where: { code: input.referralCodeUsed },
+      include: { user: true },
+    });
+    // Fall back to User.referralCode only during the rollout. A known but
+    // revoked canonical link must never be revived by that fallback.
+    referrer = canonicalLink
+      ? canonicalLink.isActive && canonicalLink.revokedAt === null
+        ? canonicalLink.user
+        : null
+      : await prisma.user.findUnique({ where: { referralCode: input.referralCodeUsed } });
+  }
 
   for (let attempt = 0; attempt < MAX_REFERRAL_CODE_ATTEMPTS; attempt++) {
     const referralCode = generateReferralCode();
@@ -72,37 +82,56 @@ export async function ensureUser(input: EnsureUserInput): Promise<EnsureUserResp
         });
 
         const wallet = await tx.wallet.create({ data: { userId: user.id } });
+        await tx.referralLink.create({ data: { userId: user.id, code: referralCode } });
 
-        // Referral reward is credited to the referrer, not the new user,
-        // once their referred friend joins (see NOVA_ORG_AGENT_PLAN.md
-        // section 7 — coin only changes via the backend ledger).
+        // Registration creates pending entitlement only. Available balance is
+        // released later by the server-side quality evaluator.
         if (referrer) {
-          await tx.referral.create({
+          const referral = await tx.referral.create({
             data: {
               referrerUserId: referrer.id,
               referredUserId: user.id,
-              status: "REWARDED",
-              reward: env.REFERRAL_REWARD_AMOUNT,
+              status: "PENDING",
+              reward: 0n,
             },
           });
-
-          const referrerWallet = await tx.wallet.update({
+          await tx.referralMilestone.createMany({
+            data: [
+              {
+                referralId: referral.id,
+                beneficiaryId: referrer.id,
+                type: "REFERRER_REGISTER",
+                status: "ELIGIBLE",
+                amount: 500n,
+                idempotencyKey: `referral:${referral.id}:register`,
+                eligibleAt: new Date(),
+              },
+              {
+                referralId: referral.id,
+                beneficiaryId: referrer.id,
+                type: "REFERRER_ACTIVE_3_DAYS",
+                amount: 500n,
+                idempotencyKey: `referral:${referral.id}:active-3-days`,
+              },
+              {
+                referralId: referral.id,
+                beneficiaryId: referrer.id,
+                type: "REFERRER_QUALITY_7_DAYS",
+                amount: 1_000n,
+                idempotencyKey: `referral:${referral.id}:quality-7-days`,
+              },
+              {
+                referralId: referral.id,
+                beneficiaryId: user.id,
+                type: "REFERRED_USER_QUALITY",
+                amount: 500n,
+                idempotencyKey: `referral:${referral.id}:referred-user-quality`,
+              },
+            ],
+          });
+          await tx.wallet.update({
             where: { userId: referrer.id },
-            data: {
-              balance: { increment: env.REFERRAL_REWARD_AMOUNT },
-              totalEarned: { increment: env.REFERRAL_REWARD_AMOUNT },
-            },
-          });
-
-          await tx.coinTransaction.create({
-            data: {
-              userId: referrer.id,
-              walletId: referrerWallet.id,
-              type: "REFERRAL_REWARD",
-              amount: env.REFERRAL_REWARD_AMOUNT,
-              referenceType: "referral",
-              referenceId: user.id,
-            },
+            data: { pendingBalance: { increment: 500n } },
           });
         }
 
