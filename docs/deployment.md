@@ -18,6 +18,7 @@ This document provides complete instructions for deploying NOVA ORG to productio
 ## 2. Server Initial Setup
 
 ### Step 1: Install Docker & Docker Compose
+
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y curl git ufw fail2ban
@@ -28,6 +29,7 @@ sudo usermod -aG docker $USER
 ```
 
 ### Step 2: Configure UFW Firewall
+
 ```bash
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
@@ -42,6 +44,7 @@ sudo ufw enable
 ## 3. Deployment Setup
 
 ### Step 1: Clone Repository & Create `.env`
+
 ```bash
 git clone https://github.com/your-org/nova-org.git /opt/nova-org
 cd /opt/nova-org
@@ -51,6 +54,7 @@ nano .env
 ```
 
 Set production secrets in `.env`:
+
 ```env
 NODE_ENV=production
 TELEGRAM_BOT_TOKEN=123456789:ABCDefghIJKlmnOPQRstuvWXYZ
@@ -76,6 +80,7 @@ ADMIN_TELEGRAM_IDS=6536916039
 ```
 
 ### Step 2: SSL Certificate Generation (Let's Encrypt / Certbot)
+
 ```bash
 sudo apt install -y certbot
 sudo certbot certonly --standalone -d app.yourdomain.com -d api.yourdomain.com -d admin.yourdomain.com
@@ -86,6 +91,7 @@ sudo certbot certonly --standalone -d app.yourdomain.com -d api.yourdomain.com -
 ## 4. Launching Production Stack
 
 Run the automated deployment script:
+
 ```bash
 chmod +x infra/scripts/*.sh
 ./infra/scripts/deploy.sh
@@ -96,11 +102,13 @@ chmod +x infra/scripts/*.sh
 ## 5. Automated Backups & Health Checks
 
 Add Cron jobs for daily database backups and uptime monitoring:
+
 ```bash
 crontab -e
 ```
 
 Add lines:
+
 ```cron
 # Daily database backup at 03:00 AM
 0 3 * * * /opt/nova-org/infra/scripts/backup-postgres.sh >> /var/log/nova-backup.log 2>&1
@@ -114,6 +122,7 @@ Add lines:
 ## 6. Verification
 
 Check running services:
+
 ```bash
 docker compose -f infra/docker/docker-compose.prod.yml ps
 ```
