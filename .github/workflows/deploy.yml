@@ -30,6 +30,12 @@ jobs:
       - name: Install Workspace Dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        run: npm run prisma:generate -w @nova-org/db
+
+      - name: Build Workspace Packages
+        run: npm run build:packages
+
       - name: Run Typecheck
         run: npm run typecheck
 

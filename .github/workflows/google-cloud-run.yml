@@ -28,13 +28,12 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@v2
-      - name: Configure project and required APIs
+      - name: Configure project and Artifact Registry auth
         env:
           PROJECT_ID: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
         run: |
           set -euo pipefail
           gcloud config set project "$PROJECT_ID"
-          gcloud services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
           gcloud artifacts repositories describe "$REPOSITORY" --location "$REGION" >/dev/null 2>&1 || \
             gcloud artifacts repositories create "$REPOSITORY" --repository-format=docker --location "$REGION"
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
