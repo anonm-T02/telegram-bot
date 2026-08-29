@@ -97,7 +97,8 @@ export class CloudflareWorkersAiProvider implements SupportAiProvider {
     if (!response.ok) throw new Error(`Cloudflare Workers AI failed with ${response.status}`);
     const payload = (await response.json()) as WorkersAiResponse;
     const text = payload.result?.response?.trim();
-    if (!payload.success || !text) throw new Error("Cloudflare Workers AI returned an invalid response");
+    if (!payload.success || !text)
+      throw new Error("Cloudflare Workers AI returned an invalid response");
     return {
       text,
       toolResult: {
