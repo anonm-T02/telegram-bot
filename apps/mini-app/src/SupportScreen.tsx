@@ -65,11 +65,11 @@ export function SupportScreen({ client }: { client?: SessionApiClient }): JSX.El
   return (
     <section className="support-view" aria-labelledby="support-title">
       <div className="screen-heading">
-        <span className="eyebrow">FAQ-FIRST HELP</span>
-        <h2 id="support-title">Support</h2>
+        <span className="eyebrow">CLOUDFLARE WORKERS AI · BONUS</span>
+        <h2 id="support-title">NOVA AI</h2>
         <p>
-          Avval tayyor javoblar tekshiriladi. Yordamchi faqat sizning hisobingizdagi o‘qish mumkin
-          bo‘lgan ma’lumotlarni ko‘radi.
+          Har kuni 5 ta bepul AI javob. Avval FAQ tekshiriladi; hisob ma’lumotlari faqat xavfsiz,
+          o‘qish mumkin bo‘lgan vositalar orqali olinadi.
         </p>
       </div>
       <div className="panel support-chat">
@@ -79,7 +79,7 @@ export function SupportScreen({ client }: { client?: SessionApiClient }): JSX.El
           maxLength={2000}
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Masalan: balansim qancha?"
+          placeholder="NOVA AI’dan biror narsa so‘rang…"
         />
         <button
           className="secondary-button"

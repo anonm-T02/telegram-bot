@@ -53,6 +53,10 @@ export function buildApp(): FastifyInstance {
     credentials: false,
   });
 
+  // A Telegram button can temporarily retain an older API URL. Send browser
+  // visits to the Mini App instead of exposing Fastify's default 404 payload.
+  app.get("/", async (_request, reply) => reply.redirect(env.APP_URL));
+
   app.register(healthRoutes);
   app.register(internalRoutes);
   app.register(authRoutes);

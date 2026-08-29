@@ -29,6 +29,11 @@ const envSchema = z
     // only the bot is allowed to trigger. Never exposed to the Mini App.
     INTERNAL_API_SECRET: z.string().min(16, "INTERNAL_API_SECRET must be at least 16 characters"),
 
+    CLOUDFLARE_AI_ACCOUNT_ID: z.string().trim().min(1).optional(),
+    CLOUDFLARE_AI_API_TOKEN: z.string().trim().min(1).optional(),
+    CLOUDFLARE_AI_MODEL: z.string().trim().min(1).default("@cf/meta/llama-3.1-8b-instruct"),
+    CLOUDFLARE_AI_DAILY_BONUS: z.coerce.number().int().min(0).max(100).default(5),
+
     DAILY_REWARD_AMOUNT: z.coerce.number().int().positive().default(50),
     REFERRAL_REWARD_AMOUNT: z.coerce.number().int().positive().default(500),
 
@@ -51,6 +56,13 @@ const envSchema = z
       .default("info"),
   })
   .superRefine((value, context) => {
+    if (Boolean(value.CLOUDFLARE_AI_ACCOUNT_ID) !== Boolean(value.CLOUDFLARE_AI_API_TOKEN)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["CLOUDFLARE_AI_API_TOKEN"],
+        message: "CLOUDFLARE_AI_ACCOUNT_ID and CLOUDFLARE_AI_API_TOKEN must be set together",
+      });
+    }
     if (value.NODE_ENV !== "production") return;
     for (const [key, url] of [
       ["APP_URL", value.APP_URL],

@@ -9,6 +9,7 @@ import {
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { env } from "../env.js";
 import { listPublicFaq, supportChat } from "../services/support.js";
+import { createSupportAiProvider } from "../services/supportAi.js";
 import { consumeSupportMutationLimit } from "../services/supportRateLimit.js";
 import {
   createSupportTicket,
@@ -41,6 +42,13 @@ async function authenticate(request: FastifyRequest): Promise<string> {
   return session.userId;
 }
 
+const supportAiProvider = createSupportAiProvider({
+  accountId: env.CLOUDFLARE_AI_ACCOUNT_ID,
+  apiToken: env.CLOUDFLARE_AI_API_TOKEN,
+  model: env.CLOUDFLARE_AI_MODEL,
+  dailyBonus: env.CLOUDFLARE_AI_DAILY_BONUS,
+});
+
 function supportError(error: unknown) {
   if (error instanceof TelegramAuthError) return { status: 401, body: { error: "UNAUTHORIZED" } };
   if (error instanceof SupportError) {
@@ -67,7 +75,7 @@ export async function supportRoutes(app: FastifyInstance): Promise<void> {
     if (!body.success) return reply.code(400).send({ error: "INVALID_INPUT" });
     try {
       const userId = await authenticate(request);
-      const result = await supportChat(userId, body.data);
+      const result = await supportChat(userId, body.data, supportAiProvider);
       request.log.info(
         { userId, conversationId: result.conversationId, source: result.source },
         "Support response recorded",

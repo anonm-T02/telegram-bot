@@ -1,5 +1,5 @@
 import { Prisma, prisma } from "@nova-org/db";
-import { supportAiProvider, type SupportAiProvider } from "./supportAi.js";
+import { deterministicSupportProvider, type SupportAiProvider } from "./supportAi.js";
 import { SupportError } from "./supportTickets.js";
 
 export type PublicFaq = { slug: string; question: string; answer: string; keywords: string[] };
@@ -40,7 +40,7 @@ export async function listPublicFaq(locale = "uz") {
 export async function supportChat(
   userId: string,
   input: { message: string; requestId: string; conversationId?: string },
-  provider: SupportAiProvider = supportAiProvider,
+  provider: SupportAiProvider = deterministicSupportProvider,
 ) {
   const prepared = await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`support-chat:${input.requestId}`}, 0))`;

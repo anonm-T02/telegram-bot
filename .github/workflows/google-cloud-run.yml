@@ -61,9 +61,10 @@ jobs:
           INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          CLOUDFLARE_AI_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
-          for name in DATABASE_URL REDIS_URL JWT_SECRET SESSION_SECRET WORK_SIGNING_SECRET INTERNAL_API_SECRET TELEGRAM_BOT_TOKEN TELEGRAM_WEBHOOK_SECRET; do
+          for name in DATABASE_URL REDIS_URL JWT_SECRET SESSION_SECRET WORK_SIGNING_SECRET INTERNAL_API_SECRET TELEGRAM_BOT_TOKEN TELEGRAM_WEBHOOK_SECRET CLOUDFLARE_AI_API_TOKEN; do
             value="${!name:-}"
             if [[ -z "$value" ]]; then
               echo "Required GitHub secret is missing: ${name}"
@@ -75,12 +76,13 @@ jobs:
       - name: Deploy API
         env:
           PROJECT_ID: ${{ secrets.GOOGLE_CLOUD_PROJECT_ID }}
+          CLOUDFLARE_AI_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           gcloud run deploy nova-api --image "$API_IMAGE" --region "$REGION" --platform managed \
             --allow-unauthenticated --min-instances 0 --max-instances 2 --port 8080 \
-            --set-env-vars 'NODE_ENV=production,APP_URL=https://app.ilmora.space,ADMIN_URL=https://admin.ilmora.space,API_URL=https://api.ilmora.space,TELEGRAM_BOT_USERNAME=NovaOrgBot,TRUST_PROXY_HOPS=1' \
-            --set-secrets 'DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,JWT_SECRET=JWT_SECRET:latest,SESSION_SECRET=SESSION_SECRET:latest,WORK_SIGNING_SECRET=WORK_SIGNING_SECRET:latest,INTERNAL_API_SECRET=INTERNAL_API_SECRET:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest'
+            --set-env-vars "NODE_ENV=production,APP_URL=https://app.ilmora.space,ADMIN_URL=https://admin.ilmora.space,API_URL=https://api.ilmora.space,TELEGRAM_BOT_USERNAME=NovaOrgBot,TRUST_PROXY_HOPS=1,CLOUDFLARE_AI_ACCOUNT_ID=${CLOUDFLARE_AI_ACCOUNT_ID},CLOUDFLARE_AI_MODEL=@cf/meta/llama-3.1-8b-instruct,CLOUDFLARE_AI_DAILY_BONUS=5" \
+            --set-secrets 'DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,JWT_SECRET=JWT_SECRET:latest,SESSION_SECRET=SESSION_SECRET:latest,WORK_SIGNING_SECRET=WORK_SIGNING_SECRET:latest,INTERNAL_API_SECRET=INTERNAL_API_SECRET:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,CLOUDFLARE_AI_API_TOKEN=CLOUDFLARE_AI_API_TOKEN:latest'
           API_RUN_URL="$(gcloud run services describe nova-api --region "$REGION" --format='value(status.url)')"
           echo "API_RUN_URL=$API_RUN_URL" >> "$GITHUB_ENV"
       - name: Run production migrations
