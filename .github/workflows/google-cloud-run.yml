@@ -34,8 +34,14 @@ jobs:
         run: |
           set -euo pipefail
           gcloud config set project "$PROJECT_ID"
+          gcloud services enable \
+            artifactregistry.googleapis.com \
+            run.googleapis.com \
+            secretmanager.googleapis.com \
+            --project "$PROJECT_ID" \
+            --quiet
           gcloud artifacts repositories describe "$REPOSITORY" --location "$REGION" >/dev/null 2>&1 || \
-            gcloud artifacts repositories create "$REPOSITORY" --repository-format=docker --location "$REGION"
+            gcloud artifacts repositories create "$REPOSITORY" --repository-format=docker --location "$REGION" --quiet
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
       - name: Build and push images
         env:
